@@ -1,5 +1,4 @@
 package com.vegvendor.vegvendorbackend;
-import java.util.UUID;
 
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.Firestore;
@@ -8,12 +7,14 @@ import com.google.cloud.firestore.QuerySnapshot;
 import com.google.firebase.cloud.FirestoreClient;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RestController;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 @RestController
@@ -34,6 +35,7 @@ public class VendorController {
 
         return vendors;
     }
+
     @PostMapping("/api/vendor/{vendorId}/stock")
     public String addStock(@PathVariable String vendorId, @RequestBody StockItem stockItem) throws ExecutionException, InterruptedException {
         Firestore db = FirestoreClient.getFirestore();
@@ -46,6 +48,26 @@ public class VendorController {
 
         return "Stock item added successfully for vendor: " + vendorId;
     }
+
+    @GetMapping("/api/vendor/{vendorId}/stock")
+    public List<StockItem> getVendorStock(@PathVariable String vendorId) throws ExecutionException, InterruptedException {
+        Firestore db = FirestoreClient.getFirestore();
+
+        ApiFuture<QuerySnapshot> future = db.collection("vendors")
+                .document(vendorId)
+                .collection("stock")
+                .get();
+
+        List<QueryDocumentSnapshot> documents = future.get().getDocuments();
+
+        List<StockItem> stockItems = new ArrayList<>();
+        for (QueryDocumentSnapshot document : documents) {
+            stockItems.add(document.toObject(StockItem.class));
+        }
+
+        return stockItems;
+    }
+
     @PostMapping("/api/vendor")
     public String registerVendor(@RequestBody Vendor vendor) throws ExecutionException, InterruptedException {
         Firestore db = FirestoreClient.getFirestore();
