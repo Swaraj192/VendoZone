@@ -6,11 +6,11 @@ public class Vendor {
     private String phone;
     private String password;
     private String zoneName;
-    private boolean isActive;
+    private Boolean isActive;
 
     public Vendor() {}
 
-    public Vendor(String vendorId, String name, String phone, String password, String zoneName, boolean isActive) {
+    public Vendor(String vendorId, String name, String phone, String password, String zoneName, Boolean isActive) {
         this.vendorId = vendorId;
         this.name = name;
         this.phone = phone;
@@ -34,6 +34,6 @@ public class Vendor {
     public String getZoneName() { return zoneName; }
     public void setZoneName(String zoneName) { this.zoneName = zoneName; }
 
-    public boolean isActive() { return isActive; }
-    public void setActive(boolean active) { isActive = active; }
+    public Boolean isActive() { return isActive; }
+    public void setActive(Boolean active) { isActive = active; }
 }

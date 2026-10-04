@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <title>VendoZone</title>
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial;
+            background: #eef7ee;
+        }
+
+        .app {
+            width: 100%;
+            max-width: 450px;
+            min-height: 100vh;
+            margin: auto;
+            background: white;
+        }
+
+        .header {
+            background: #287a3d;
+            color: white;
+            padding: 22px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0;
+        }
+
+        .page {
+            padding: 25px;
+        }
+
+        h2 {
+            color: #287a3d;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 14px;
+            margin: 8px 0 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            margin: 8px 0;
+            border: none;
+            border-radius: 8px;
+            background: #287a3d;
+            color: white;
+            font-size: 16px;
+        }
+
+        button:active {
+            background: #185c2b;
+        }
+
+        .link {
+            color: #287a3d;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 20px 0;
+        }
+
+        .card {
+            background: #eef7ee;
+            padding: 20px 10px;
+            text-align: center;
+            border-radius: 12px;
+        }
+
+        .card b {
+            display: block;
+            font-size: 22px;
+            color: #287a3d;
+            margin: 8px;
+        }
+
+        .vegetable {
+            background: #f2f2f2;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 8px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="app">
+
+
+    <!-- ================= REGISTRATION ================= -->
+
+    <div id="registerPage">
+
+        <div class="header">
+            <h1>🥬 VendoZone</h1>
+            <p>Local Vegetable Vendor Platform</p>
+        </div>
+
+        <div class="page">
+
+            <h2>Vendor Registration</h2>
+
+            <label>Vendor Name</label>
+
+            <input
+                type="text"
+                id="name"
+                placeholder="Enter vendor name">
+
+
+            <label>Mobile Number</label>
+
+            <input
+                type="number"
+                id="phone"
+                placeholder="Enter mobile number">
+
+
+            <label>Password</label>
+
+            <input
+                type="password"
+                id="password"
+                placeholder="Create password">
+
+
+            <label>Vending Zone</label>
+
+            <select id="zone">
+
+                <option value="">
+                    Select Vending Zone
+                </option>
+
+                <option value="Dadar Market">
+                    Dadar Market
+                </option>
+
+                <option value="Parel">
+                    Parel
+                </option>
+
+                <option value="Mahim Market">
+                    Mahim Market
+                </option>
+
+                <option value="Mahim West">
+                    Mahim West
+                </option>
+
+                <option value="Mahim Station Road">
+                    Mahim Station Road
+                </option>
+
+                <option value="Mahim East">
+                    Mahim East
+                </option>
+
+                <option value="Worli">
+                    Worli
+                </option>
+
+            </select>
+
+
+            <button onclick="register()">
+                REGISTER
+            </button>
+
+
+            <p style="text-align:center">
+
+                Already registered?
+
+                <span
+                    class="link"
+                    onclick="showLogin()">
+
+                    Login
+
+                </span>
+
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= LOGIN ================= -->
+
+    <div id="loginPage" class="hidden">
+
+        <div class="header">
+
+            <h1>🥬 VendoZone</h1>
+
+            <p>Vendor Login</p>
+
+        </div>
+
+        <div class="page">
+
+            <h2>Welcome Back 👋</h2>
+
+            <label>Mobile Number</label>
+
+            <input
+                type="number"
+                id="loginPhone"
+                placeholder="Enter mobile number">
+
+
+            <label>Password</label>
+
+            <input
+                type="password"
+                id="loginPassword"
+                placeholder="Enter password">
+
+
+            <button onclick="login()">
+                LOGIN
+            </button>
+
+
+            <p style="text-align:center">
+
+                New vendor?
+
+                <span
+                    class="link"
+                    onclick="showRegister()">
+
+                    Register
+
+                </span>
+
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- ================= DASHBOARD ================= -->
+
+    <div id="dashboardPage" class="hidden">
+
+        <div class="header">
+
+            <h1>🥬 VendoZone</h1>
+
+            <p id="welcome"></p>
+
+        </div>
+
+
+        <div class="page">
+
+            <p>
+                📍 Your Zone:
+                <b id="vendorZone"></b>
+            </p>
+
+
+            <div class="cards">
+
+                <div class="card">
+
+                    🥕
+                    <b id="vegCount">0</b>
+
+                    Vegetables
+
+                </div>
+
+
+                <div class="card">
+
+                    🛒
+                    <b id="ordersCount">0</b>
+
+                    Orders
+
+                </div>
+
+
+                <div class="card">
+
+                    💰
+                    <b id="incomeValue">₹0</b>
+
+                    Income
+
+                </div>
+
+
+                <div class="card">
+
+                    📍
+                    <b id="zoneCard"></b>
+
+                    Zone
+
+                </div>
+
+            </div>
+
+
+            <button onclick="addVegetable()">
+                🥕 Add Vegetable
+            </button>
+
+
+            <button onclick="showVegetables()">
+                📦 My Vegetables
+            </button>
+
+
+            <button onclick="showOrders()">
+                🛒 Orders
+            </button>
+
+
+            <button onclick="showIncome()">
+                💰 Income
+            </button>
+
+
+            <div id="output"></div>
+
+
+            <button onclick="logout()">
+                🚪 Logout
+            </button>
+
+        </div>
+
+    </div>
+
+
+</div>
+
+
+<script>
+
+    // Store vendor details
+    let vendor = {};
+
+    // Store vegetables
+    let vegetables = [];
+
+    // Set after a successful real registration with the backend
+    let currentVendorId = null;
+
+
+    // ================= REGISTER =================
+
+    function register() {
+
+        let name =
+            document.getElementById("name").value;
+
+        let phone =
+            document.getElementById("phone").value;
+
+        let password =
+            document.getElementById("password").value;
+
+        let zone =
+            document.getElementById("zone").value;
+
+
+        // Check details
+
+        if (
+            name === "" ||
+            phone === "" ||
+            password === "" ||
+            zone === ""
+        ) {
+
+            alert("Please fill all details");
+
+            return;
+        }
+
+
+        fetch('http://localhost:8080/api/vendor', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                phone: phone,
+                password: password,
+                zoneName: zone
+            })
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error("Server returned an error: " + response.status);
+            }
+            return response.text();
+        })
+        .then(function(returnedVendorId) {
+
+            currentVendorId = returnedVendorId;
+
+            // Save vendor locally too, since login() still checks against this
+            vendor.name = name;
+            vendor.phone = phone;
+            vendor.password = password;
+            vendor.zone = zone;
+
+            alert("Registration successful! Your vendor ID: " + currentVendorId);
+
+            // Go to login
+
+            showLogin();
+
+        })
+        .catch(function(error) {
+
+            alert("Could not reach the server. Is the backend running? " + error);
+
+        });
+
+    }
+
+
+    // ================= SHOW LOGIN =================
+
+    function showLogin() {
+
+        document
+            .getElementById("registerPage")
+            .classList.add("hidden");
+
+
+        document
+            .getElementById("dashboardPage")
+            .classList.add("hidden");
+
+
+        document
+            .getElementById("loginPage")
+            .classList.remove("hidden");
+
+    }
+
+
+    // ================= SHOW REGISTER =================
+
+    function showRegister() {
+
+        document
+            .getElementById("loginPage")
+            .classList.add("hidden");
+
+
+        document
+            .getElementById("registerPage")
+            .classList.remove("hidden");
+
+    }
+
+
+    // ================= LOGIN =================
+
+    function login() {
+
+        let phone =
+            document.getElementById("loginPhone").value;
+
+        let password =
+            document.getElementById("loginPassword").value;
+
+
+        if (
+            phone === vendor.phone &&
+            password === vendor.password
+        ) {
+
+            // Hide login
+
+            document
+                .getElementById("loginPage")
+                .classList.add("hidden");
+
+
+            // Show dashboard
+
+            document
+                .getElementById("dashboardPage")
+                .classList.remove("hidden");
+
+
+            // Show vendor name
+
+            document
+                .getElementById("welcome")
+                .innerHTML =
+                "Welcome " + vendor.name + " 👋";
+
+
+            // Show zone
+
+            document
+                .getElementById("vendorZone")
+                .innerHTML =
+                vendor.zone;
+
+
+            document
+                .getElementById("zoneCard")
+                .innerHTML =
+                vendor.zone;
+
+        }
+
+        else {
+
+            alert(
+                "Wrong mobile number or password"
+            );
+
+        }
+
+    }
+
+
+    // ================= ADD VEGETABLE =================
+    // Now connected to the real backend: POST /api/vendor/{vendorId}/stock
+
+    function addVegetable() {
+
+        let name =
+            prompt("Enter vegetable name");
+
+
+        let quantity =
+            prompt("Enter quantity in kg");
+
+
+        let price =
+            prompt("Enter price per kg");
+
+
+        if (
+            name === null ||
+            quantity === null ||
+            price === null
+        ) {
+
+            return;
+        }
+
+
+        fetch('http://localhost:8080/api/vendor/' + currentVendorId + '/stock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                itemName: name,
+                pricePerKg: parseFloat(price),
+                quantityKg: parseFloat(quantity)
+            })
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error("Server returned an error: " + response.status);
+            }
+            return response.text();
+        })
+        .then(function(data) {
+
+            vegetables.push({
+
+                name: name,
+
+                quantity: quantity,
+
+                price: price
+
+            });
+
+
+            document
+                .getElementById("vegCount")
+                .innerHTML =
+                vegetables.length;
+
+
+            alert(data);
+
+        })
+        .catch(function(error) {
+
+            alert("Could not reach the server. Is the backend running? " + error);
+
+        });
+
+    }
+
+
+    // ================= SHOW VEGETABLES =================
+
+    function showVegetables() {
+
+        let output =
+            document.getElementById("output");
+
+
+        if (vegetables.length === 0) {
+
+            output.innerHTML =
+                "<div class='vegetable'>" +
+                "No vegetables added yet." +
+                "</div>";
+
+            return;
+
+        }
+
+
+        let result =
+            "<h3>📦 My Vegetables</h3>";
+
+
+        vegetables.forEach(function(v) {
+
+            result +=
+
+                "<div class='vegetable'>" +
+
+                "🥕 <b>" +
+                v.name +
+                "</b><br>" +
+
+                "Quantity: " +
+                v.quantity +
+                " kg<br>" +
+
+                "Price: ₹" +
+                v.price +
+                "/kg" +
+
+                "</div>";
+
+        });
+
+
+        output.innerHTML = result;
+
+    }
+
+
+    // ================= ORDERS =================
+    // Now connected to the real backend: GET /api/vendor/{vendorId}/orders
+
+    function showOrders() {
+
+        if (!currentVendorId) {
+            alert("Please register or login first.");
+            return;
+        }
+
+        fetch('http://localhost:8080/api/vendor/' + currentVendorId + '/orders')
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error("Server returned an error: " + response.status);
+            }
+            return response.json();
+        })
+        .then(function(orders) {
+
+            document
+                .getElementById("ordersCount")
+                .innerHTML =
+                orders.length;
+
+
+            let output =
+                document.getElementById("output");
+
+
+            if (orders.length === 0) {
+
+                output.innerHTML =
+                    "<div class='vegetable'>" +
+                    "<h3>🛒 Orders</h3>" +
+                    "No orders yet." +
+                    "</div>";
+
+                return;
+
+            }
+
+
+            let result =
+                "<h3>🛒 Orders</h3>";
+
+
+            orders.forEach(function(o) {
+
+                let itemsText = "";
+
+                o.items.forEach(function(item) {
+                    itemsText +=
+                        item.itemName + " - " + item.qty + " kg<br>";
+                });
+
+                result +=
+
+                    "<div class='vegetable'>" +
+
+                    "Order #" + o.orderId.substring(0, 8) + "<br>" +
+
+                    itemsText +
+
+                    "Status: <b>" + o.status + "</b>" +
+
+                    "</div>";
+
+            });
+
+
+            output.innerHTML = result;
+
+        })
+        .catch(function(error) {
+
+            alert("Could not reach the server. Is the backend running? " + error);
+
+        });
+
+    }
+
+
+    // ================= INCOME =================
+    // Now connected to the real backend: GET /api/vendor/{vendorId}/orders
+    // Income counts only FULFILLED orders, since a "placed" order hasn't actually paid out yet
+
+    function showIncome() {
+
+        if (!currentVendorId) {
+            alert("Please register or login first.");
+            return;
+        }
+
+        fetch('http://localhost:8080/api/vendor/' + currentVendorId + '/orders')
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error("Server returned an error: " + response.status);
+            }
+            return response.json();
+        })
+        .then(function(orders) {
+
+            let total = 0;
+
+            orders.forEach(function(o) {
+
+                if (o.status === "fulfilled") {
+
+                    o.items.forEach(function(item) {
+                        total += item.qty * item.price;
+                    });
+
+                }
+
+            });
+
+
+            document
+                .getElementById("incomeValue")
+                .innerHTML =
+                "₹" + total;
+
+
+            document
+                .getElementById("output")
+                .innerHTML =
+
+                "<div class='vegetable'>" +
+
+                "<h3>💰 Today's Income</h3>" +
+
+                "Total Income (fulfilled orders): ₹" + total +
+
+                "</div>";
+
+        })
+        .catch(function(error) {
+
+            alert("Could not reach the server. Is the backend running? " + error);
+
+        });
+
+    }
+
+
+    // ================= LOGOUT =================
+
+    function logout() {
+
+        document
+            .getElementById("dashboardPage")
+            .classList.add("hidden");
+
+
+        document
+            .getElementById("loginPage")
+            .classList.remove("hidden");
+
+    }
+
+</script>
+
+</body>
+
+</html>

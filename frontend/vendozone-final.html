@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>VendoZone</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  :root{
+    --paper:#EEF6F0;
+    --panel:#FFFFFF;
+    --ink:#16301F;
+    --ink-soft:#5C7566;
+    --line:#DCEBDF;
+    --marigold:#E2A63B;
+    --teal:#2E7D4F;
+    --brand:#2E7D4F;
+    --brand-dark:#1F5C38;
+    --brand-light:#E7F4EA;
+    --chili:#C24428;
+    --veg:#3F7D45;
+    --fruit:#E2762B;
+    --grocery:#2E7D4F;
+    --dairy:#3B5FA0;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Work Sans',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
+  #app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--paper);position:relative;display:flex;flex-direction:column;}
+  .screen{display:none;flex-direction:column;min-height:100vh;animation:fade .25s ease;}
+  .screen.active{display:flex;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  /* ---- top bar ---- */
+
+  .topbar{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--brand);border-bottom:1px solid var(--brand-dark);color:#fff;}
+  .topbar .brand{font-weight:700;font-size:19px;letter-spacing:-0.01em;}
+  .topbar .sub{font-size:12px;color:rgba(255,255,255,.8);margin-top:2px;}
+  .topbar .greet{color:#fff;}
+  .topbar .zone-chip{color:#fff;opacity:.92;}
+  .iconbtn{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:8px 12px;font-family:'Work Sans';font-size:13px;font-weight:600;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px;}
+  .iconbtn:active{transform:scale(.97);}
+  .backbtn{background:none;border:none;font-size:20px;cursor:pointer;color:#fff;padding:4px 6px 4px 0;}
+
+  .content{flex:1;padding:18px 20px 90px;overflow-y:auto;}
+
+  /* ---- login ---- */
+  .login-wrap{flex:1;display:flex;flex-direction:column;background:var(--paper);}
+  .brand-banner{background:linear-gradient(135deg,var(--brand) 0%,var(--brand-dark) 100%);color:#fff;padding:44px 28px 52px;text-align:center;flex-shrink:0;}
+  .brand-banner .logo{font-size:26px;font-weight:700;letter-spacing:-0.01em;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .brand-banner .logo .dot{color:#fff;}
+  .brand-banner .tagline{color:rgba(255,255,255,.88);margin-top:8px;font-size:13.5px;}
+  .login-card{background:var(--panel);margin:-30px 20px 24px;border-radius:16px;box-shadow:0 10px 28px rgba(22,48,31,.12);padding:26px 22px 28px;position:relative;flex:1;}
+  .login-card h2{margin:0 0 4px;font-size:19px;}
+  .logo{font-size:34px;font-weight:700;letter-spacing:-0.02em;}
+  .logo .dot{color:var(--marigold);}
+  .tagline{color:var(--ink-soft);margin-top:6px;font-size:14px;}
+  .field{margin-top:22px;}
+  .field label{display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);margin-bottom:6px;}
+  .field input, .field textarea{
+    width:100%;border:1.5px solid var(--line);border-radius:10px;padding:12px 14px;font-size:15px;
+    font-family:'Work Sans';background:var(--panel);color:var(--ink);
+  }
+  .field input:focus, .field textarea:focus{outline:none;border-color:var(--teal);}
+  .btn{
+    width:100%;padding:14px;border-radius:10px;border:none;font-family:'Space Grotesk';font-weight:600;font-size:15px;
+    cursor:pointer;margin-top:22px;transition:transform .08s ease;
+  }
+  .btn:active{transform:scale(.98);}
+  .btn-primary{background:var(--brand);color:#fff;}
+  .btn-ghost{background:none;border:1.5px solid var(--line);color:var(--ink);margin-top:12px;}
+  .btn-marigold{background:var(--marigold);color:var(--ink);}
+  .btn-teal{background:var(--brand);color:#fff;}
+  .error-text{color:var(--chili);font-size:13px;margin-top:10px;display:none;}
+
+  /* ---- home ---- */
+  .greet{font-size:20px;font-weight:700;}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;}
+  .stat-tile{background:var(--brand-light);border-radius:12px;padding:14px 12px;text-align:center;}
+  .stat-tile .sicon{font-size:20px;}
+  .stat-tile .sval{font-weight:700;font-size:19px;color:var(--brand-dark);font-family:'Space Grotesk';margin-top:4px;}
+  .stat-tile .slabel{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  .search{margin:14px 0 18px;}
+  .search input{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:11px 14px;font-size:14px;font-family:'Work Sans';background:var(--panel);}
+  .search input:focus{outline:none;border-color:var(--teal);}
+  .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .vcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;display:flex;flex-direction:column;transition:transform .1s ease;}
+  .vcard:active{transform:scale(.97);}
+  .vcard .band{height:5px;}
+  .vcard .body{padding:14px;}
+  .vcard .icon{font-size:28px;}
+  .vcard .name{font-weight:600;font-size:14.5px;margin-top:8px;line-height:1.25;}
+  .vcard .meta{font-size:12px;color:var(--ink-soft);margin-top:6px;line-height:1.5;}
+  .empty-state{text-align:center;color:var(--ink-soft);padding:60px 20px;font-size:14px;}
+
+  /* ---- zone selection ---- */
+  .zone-wrap{padding:8px 0 4px;}
+  .zone-intro{font-size:13px;color:var(--ink-soft);margin-bottom:16px;}
+  .zcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;align-items:center;gap:14px;margin-bottom:12px;cursor:pointer;transition:transform .1s ease, border-color .1s ease;}
+  .zcard:active{transform:scale(.98);}
+  .zcard .zicon{font-size:26px;width:44px;height:44px;border-radius:10px;background:var(--brand-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .zcard .zname{font-weight:600;font-size:15.5px;}
+  .zcard .zdesc{font-size:12.5px;color:var(--ink-soft);margin-top:3px;}
+  .zcard .zcount{font-size:11.5px;color:var(--teal);font-weight:600;margin-top:5px;}
+  .zone-chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--teal);font-weight:600;cursor:pointer;background:none;border:none;padding:0;font-family:'Work Sans';margin-top:4px;}
+
+  /* ---- products ---- */
+  .prow{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .prow .pname{font-weight:600;font-size:15px;}
+  .prow .pprice{font-size:13px;color:var(--ink-soft);margin-top:3px;}
+  .prow .pstock{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .qty-row{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .qty-row button{width:28px;height:28px;border-radius:7px;border:1px solid var(--line);background:var(--panel);font-size:15px;cursor:pointer;}
+  .qty-row .qval{width:20px;text-align:center;font-weight:600;font-size:14px;}
+  .addbtn{background:var(--ink);color:var(--paper);border:none;border-radius:8px;padding:8px 12px;font-family:'Space Grotesk';font-weight:600;font-size:12.5px;cursor:pointer;margin-top:8px;width:100%;}
+
+  /* ---- cart ---- */
+  .citem{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;}
+  .citem .cname{font-weight:600;font-size:14.5px;}
+  .citem .cvendor{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+  .citem .cline{font-size:13px;margin-top:6px;}
+  .removebtn{background:none;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--chili);cursor:pointer;font-family:'Work Sans';font-weight:600;}
+  .footer-bar{position:sticky;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:14px 20px;display:flex;flex-direction:column;gap:10px;}
+  .total-row{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:17px;}
+
+  /* ---- payment ---- */
+  .pay-option{background:var(--panel);border:1.5px solid var(--line);border-radius:12px;padding:18px;display:flex;align-items:center;gap:14px;cursor:pointer;margin-bottom:12px;}
+  .pay-option:active{transform:scale(.98);}
+  .pay-option .emoji{font-size:26px;}
+  .pay-option .plabel{font-weight:600;font-size:15px;}
+  .pay-option .psub{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+
+  /* ---- tracking ---- */
+  .stage{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--line);}
+  .stage:last-child{border-bottom:none;}
+  .stage .dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;color:transparent;}
+  .stage.done .dot{background:var(--veg);border-color:var(--veg);color:#fff;}
+  .stage.done .slabel{color:var(--ink);font-weight:600;}
+  .stage .slabel{color:var(--ink-soft);font-size:14.5px;}
+
+  .badge{background:var(--chili);color:#fff;font-size:10.5px;font-weight:700;border-radius:20px;padding:1px 6px;margin-left:4px;}
+  .toast{
+    position:fixed;left:50%;bottom:26px;transform:translateX(-50%);
+    background:var(--ink);color:var(--paper);padding:11px 18px;border-radius:10px;font-size:13.5px;font-weight:500;
+    opacity:0;pointer-events:none;transition:opacity .25s ease, bottom .25s ease;z-index:50;max-width:85%;text-align:center;
+  }
+  .toast.show{opacity:1;bottom:38px;}
+
+  /* ---- live map tracking ---- */
+  #trackMap{width:100%;height:230px;border-radius:12px;border:1px solid var(--line);margin-bottom:16px;background:var(--line);}
+  .live-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--chili);}
+  .live-dot{width:8px;height:8px;border-radius:50%;background:var(--chili);animation:pulse 1.1s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.35;transform:scale(1.4);}}
+  .eta-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .eta-box .etalabel{font-size:12px;color:var(--ink-soft);}
+  .eta-box .etaval{font-family:'Space Grotesk';font-weight:700;font-size:16px;margin-top:2px;}
+  .agent-pin{font-size:22px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));}
+  .stall-pin,.home-pin{font-size:20px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.2));}
+  .addbtn:disabled{opacity:.45;cursor:not-allowed;}
+  .err-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px 18px;text-align:center;color:var(--chili);font-size:14px;font-weight:600;}
+  .err-box small{display:block;margin-top:6px;color:var(--ink-soft);font-weight:400;word-break:break-word;}
+  .demo-note{background:#FFF6E0;border:1px solid var(--marigold);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--ink);margin-bottom:12px;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= DATA ================= */
+/* ================= CONFIG ================= */
+// Base URL of the backend. '' = same origin (this page is served by the backend itself).
+// If the backend runs elsewhere, set e.g. 'http://localhost:8080' (the backend must then allow CORS).
+const BACKEND_URL = 'http://localhost:8080'; // only used when DATA_SOURCE = 'backend' — CHANGE to your backend address (use your PC's IP when testing on a phone)
+// Opened as a file (file://) -> talk to BACKEND_URL. Served by the backend itself -> same origin.
+// You can also override with ?api=http://host:port in the page URL.
+const API_BASE = new URLSearchParams(location.search).get('api') || (location.protocol==='file:' ? BACKEND_URL : '');
+const API_TIMEOUT_MS = 10000;
+
+// WHERE THE DATA COMES FROM
+//   'embedded' -> the database below is built into this file; works offline, no server needed (default)
+//   'backend'  -> call the real server (server.py / seller backend) at BACKEND_URL instead
+const DATA_SOURCE = 'backend';
+
+// GET /api/vendor/{id}/stock is not built yet. While this is true, a failed stock request
+// falls back to clearly-labelled demo items so the order flow can still be tested.
+// Set to false once the real endpoint is live.
+const DEMO_STOCK_FALLBACK = false; // real stock endpoint now exists in server.py
+
+/* ================= ZONES =================
+   SHARED ZONE LIST — `name` must be IDENTICAL (spelling + casing) to the seller app's zone names,
+   because vendors returned by GET /api/vendors are matched to zones on `zoneName === name`.
+   Currently the seller app uses: Wadala Zone, Dadar Zone, Sion Zone.
+   To change the agreed list, edit only the `name` fields here (coords drive the map). */
+const CATEGORY_COLOR = {Vegetables:'var(--veg)', Fruits:'var(--fruit)', Flowers:'#C2185B', 'Juice & Coconut':'#2E9CA6', 'Milk & Curd':'var(--dairy)', 'Bread & Pav':'var(--marigold)', Snacks:'var(--chili)'};
+const CATEGORY_ICON = {Vegetables:'🥦', Fruits:'🍎', Flowers:'🌼', 'Juice & Coconut':'🥥', 'Milk & Curd':'🥛', 'Bread & Pav':'🍞', Snacks:'🥜'};
+
+const zones = [
+  {id:'dadar-market', name:'Dadar Market', description:'Iconic wholesale flower, fruit & veg mandi', icon:'🌼', coords:{lat:19.0186, lng:72.8478}, homeOffset:{lat:0.0048, lng:0.0040}},
+  {id:'parel', name:'Parel', description:'Mill-district neighbourhood turned business hub', icon:'🏢', coords:{lat:19.0027, lng:72.8400}, homeOffset:{lat:0.0042, lng:0.0052}},
+  {id:'mahim-market', name:'Mahim Market', description:'Traditional market street — produce & spices', icon:'🏮', coords:{lat:19.0410, lng:72.8397}, homeOffset:{lat:0.0055, lng:0.0048}},
+  {id:'mahim-west', name:'Mahim West', description:'Residential lanes near the station', icon:'🌆', coords:{lat:19.0385, lng:72.8355}, homeOffset:{lat:0.0050, lng:0.0060}},
+  {id:'mahim-station-road', name:'Mahim Station Road', description:'Busy road right by Mahim station', icon:'🚉', coords:{lat:19.0432, lng:72.8415}, homeOffset:{lat:0.0045, lng:0.0042}},
+  {id:'mahim-east', name:'Mahim East', description:'Quiet neighbourhood on the east side', icon:'🏘️', coords:{lat:19.0448, lng:72.8465}, homeOffset:{lat:0.0038, lng:0.0055}},
+  {id:'worli', name:'Worli', description:'Seaside residential and commercial belt', icon:'🌊', coords:{lat:19.0176, lng:72.8172}, homeOffset:{lat:0.0040, lng:0.0045}},
+];
+
+// Filled from GET /api/vendors (replaces the old hardcoded array).
+let vendors = [];
+
+// Only used when DEMO_STOCK_FALLBACK is true and the stock endpoint fails. Same shape as the real API.
+const DEMO_STOCK = [
+  {itemName:'Tomato', pricePerKg:40, quantityKg:30, unit:'1 kg'},
+  {itemName:'Potato', pricePerKg:35, quantityKg:25, unit:'1 kg'},
+  {itemName:'Onion',  pricePerKg:45, quantityKg:20, unit:'1 kg'},
+];
+
+/* ================= STATE ================= */
+let state = {
+  screen:'login',
+  customerName:'',
+  consumerId:'',          // sent as consumerId in POST /api/order (taken from the login username/mobile)
+  cart:[],                // {vendorId, name, price, unit, qty} — snapshot of the stock item when added
+  activeVendorId:null,
+  productQty:{},          // stock-row index -> chosen qty on product screen
+  stock:[],               // normalized stock of the open vendor (GET /api/vendor/{id}/stock)
+  stockStatus:'idle',     // idle | loading | ready | error
+  stockError:'',
+  stockDemo:false,
+  vendorsLoaded:false,
+  vendorsLoading:false,
+  vendorsError:'',
+  placingOrder:false,
+  orderIds:[],            // order IDs returned by POST /api/order
+  deliveryAddress:'',
+  phone:'',
+  stageIndex:0,
+  orderOrigin:null,      // {lat,lng} pickup point (centroid of vendors in the order)
+  orderDestination:null, // {lat,lng} customer's delivery point
+  agentProgress:0,       // 0..1 how far along the route the agent has travelled
+};
+const stages = ["Order Placed","Preparing Order","Out for Delivery","Delivered"];
+
+// Leaflet handles — module-level so the live animation can update markers
+// without tearing down and rebuilding the whole screen on every tick.
+let trackMap=null, agentMarker=null, liveTrackTimer=null;
+
+function findVendor(vid){ return vendors.find(v=>String(v.id)===String(vid)); }
+function findZone(zid){ return zones.find(z=>z.id===zid); }
+// Exact zoneName match (same spelling/casing as the seller app); inactive vendors are hidden.
+function vendorsInZone(zid){
+  const z=findZone(zid);
+  return z ? vendors.filter(v=>v.active && v.zoneName===z.name) : [];
+}
+function cartTotal(){
+  return state.cart.reduce((sum,item)=>sum + item.price*item.qty, 0);
+}
+function cartCount(){ return state.cart.length; }
+function vendorIcon(v){ return (v.category && CATEGORY_ICON[v.category]) || '🧺'; }
+function vendorColor(v){ return (v.category && CATEGORY_COLOR[v.category]) || 'var(--brand)'; }
+
+/* ================= EMBEDDED DATABASE =================
+   Snapshot of vendozone.db (vendors + stock). Orders placed in the app reduce stock in memory;
+   everything resets when the page is reloaded, so every demo starts from the same data. */
+const EMBEDDED_DB = {"lastOrderId":25,"vendors":[{"vendorId":"V014","name":"Anil's Milk Cycle","zoneName":"Dadar Zone","active":true,"category":"Milk & Curd","spot":"Shivaji Park Gate No. 4"},{"vendorId":"V012","name":"Asha Bhaji Wala","zoneName":"Dadar Zone","active":true,"category":"Vegetables","spot":"Shivaji Park Gate No. 4"},{"vendorId":"V011","name":"Dinesh's Garland Seller","zoneName":"Dadar Zone","active":true,"category":"Flowers","spot":"Chitra Cinema Corner"},{"vendorId":"V009","name":"Ganesh's Nariyal Pani Cart","zoneName":"Dadar Zone","active":false,"category":"Juice & Coconut","spot":"Tilak Bridge Naka"},{"vendorId":"V017","name":"Nasreen Phal Wala","zoneName":"Dadar Zone","active":true,"category":"Fruits","spot":"Outside Dadar Station (West)"},{"vendorId":"V015","name":"Raju's Fruit Thela","zoneName":"Dadar Zone","active":true,"category":"Fruits","spot":"Outside Dadar Station (West)"},{"vendorId":"V016","name":"Shabana Doodh Wala","zoneName":"Dadar Zone","active":true,"category":"Milk & Curd","spot":"Chitra Cinema Corner"},{"vendorId":"V018","name":"Sunita's Sugarcane Juice Cart","zoneName":"Dadar Zone","active":true,"category":"Juice & Coconut","spot":"Dadar Flower Market Lane"},{"vendorId":"V013","name":"Suresh's Snack Cart","zoneName":"Dadar Zone","active":true,"category":"Snacks","spot":"Shivaji Park Gate No. 4"},{"vendorId":"V010","name":"Usha's Bread Cycle","zoneName":"Dadar Zone","active":true,"category":"Bread & Pav","spot":"Tilak Bridge Naka"},{"vendorId":"V024","name":"Anil's Shengdana Cart","zoneName":"Sion Zone","active":true,"category":"Snacks","spot":"Sion Hospital Gate"},{"vendorId":"V025","name":"Asha's Seasonal Fruit Cart","zoneName":"Sion Zone","active":true,"category":"Fruits","spot":"Sion Hospital Gate"},{"vendorId":"V019","name":"Harish Doodh Wala","zoneName":"Sion Zone","active":true,"category":"Milk & Curd","spot":"Sion Circle"},{"vendorId":"V021","name":"Kiran Hari Sabzi Thela","zoneName":"Sion Zone","active":true,"category":"Vegetables","spot":"Sion Hospital Gate"},{"vendorId":"V022","name":"Ramesh's Bun-Pav Cart","zoneName":"Sion Zone","active":true,"category":"Bread & Pav","spot":"Koliwada Naka"},{"vendorId":"V023","name":"Salim's Garland Seller","zoneName":"Sion Zone","active":true,"category":"Flowers","spot":"Gandhi Market Lane"},{"vendorId":"V020","name":"Shabana's Sugarcane Juice Cart","zoneName":"Sion Zone","active":true,"category":"Juice & Coconut","spot":"Koliwada Naka"},{"vendorId":"V004","name":"Anil's Fruit Cart","zoneName":"Wadala Zone","active":true,"category":"Fruits","spot":"Bhakti Park Gate"},{"vendorId":"V001","name":"Dinesh's Bun-Pav Cart","zoneName":"Wadala Zone","active":true,"category":"Bread & Pav","spot":"Sangam Nagar Lane"},{"vendorId":"V008","name":"Geeta's Sugarcane Juice Cart","zoneName":"Wadala Zone","active":true,"category":"Juice & Coconut","spot":"Sangam Nagar Lane"},{"vendorId":"V006","name":"Imran's Shengdana Cart","zoneName":"Wadala Zone","active":true,"category":"Snacks","spot":"Antop Hill Naka"},{"vendorId":"V002","name":"Nasreen Hari Sabzi Thela","zoneName":"Wadala Zone","active":true,"category":"Vegetables","spot":"Bhakti Park Gate"},{"vendorId":"V003","name":"Raju's Sabzi Thela","zoneName":"Wadala Zone","active":true,"category":"Vegetables","spot":"Wadala Station Road"},{"vendorId":"V007","name":"Usha Doodh Wala","zoneName":"Wadala Zone","active":true,"category":"Milk & Curd","spot":"Bhakti Park Gate"},{"vendorId":"V005","name":"Vikram Phool Wala","zoneName":"Wadala Zone","active":true,"category":"Flowers","spot":"Antop Hill Naka"}],"stock":{"V001":[{"itemName":"Brun Pav","pricePerKg":24,"quantityKg":8,"unit":"1 piece"},{"itemName":"Bun Maska","pricePerKg":16,"quantityKg":48,"unit":"1 piece"},{"itemName":"Cream Roll","pricePerKg":25,"quantityKg":21,"unit":"1 piece"},{"itemName":"Khari","pricePerKg":43,"quantityKg":54,"unit":"200 g"},{"itemName":"Nankhatai","pricePerKg":40,"quantityKg":39,"unit":"200 g"},{"itemName":"Pav","pricePerKg":23,"quantityKg":21,"unit":"6 pieces"}],"V002":[{"itemName":"Bottle Gourd","pricePerKg":25,"quantityKg":13,"unit":"1 piece"},{"itemName":"Cabbage","pricePerKg":29,"quantityKg":31,"unit":"1 piece"},{"itemName":"Carrot","pricePerKg":45,"quantityKg":9,"unit":"1 kg"},{"itemName":"Cauliflower","pricePerKg":35,"quantityKg":10,"unit":"1 piece"},{"itemName":"Okra","pricePerKg":56,"quantityKg":5,"unit":"1 kg"},{"itemName":"Tomato","pricePerKg":31,"quantityKg":58,"unit":"1 kg"}],"V003":[{"itemName":"Bottle Gourd","pricePerKg":33,"quantityKg":34,"unit":"1 piece"},{"itemName":"Capsicum","pricePerKg":53,"quantityKg":38,"unit":"1 kg"},{"itemName":"Cauliflower","pricePerKg":30,"quantityKg":46,"unit":"1 piece"},{"itemName":"Coriander Leaves","pricePerKg":20,"quantityKg":42,"unit":"1 bunch"},{"itemName":"Green Chilli","pricePerKg":13,"quantityKg":47,"unit":"250 g"},{"itemName":"Okra","pricePerKg":42,"quantityKg":32,"unit":"1 kg"},{"itemName":"Onion","pricePerKg":30,"quantityKg":51,"unit":"1 kg"},{"itemName":"Spinach","pricePerKg":29,"quantityKg":49,"unit":"1 bunch"},{"itemName":"Tomato","pricePerKg":31,"quantityKg":57,"unit":"1 kg"}],"V004":[{"itemName":"Apple","pricePerKg":148,"quantityKg":13,"unit":"1 kg"},{"itemName":"Banana","pricePerKg":57,"quantityKg":43,"unit":"1 dozen"},{"itemName":"Grapes","pricePerKg":110,"quantityKg":51,"unit":"1 kg"},{"itemName":"Guava","pricePerKg":87,"quantityKg":45,"unit":"1 kg"},{"itemName":"Orange","pricePerKg":93,"quantityKg":0,"unit":"1 kg"},{"itemName":"Pomegranate","pricePerKg":187,"quantityKg":0,"unit":"1 kg"},{"itemName":"Sweet Lime","pricePerKg":76,"quantityKg":40,"unit":"1 kg"},{"itemName":"Watermelon","pricePerKg":57,"quantityKg":57,"unit":"1 piece"}],"V005":[{"itemName":"Betel Leaves","pricePerKg":20,"quantityKg":13,"unit":"10 leaves"},{"itemName":"Durva Bundle","pricePerKg":9,"quantityKg":31,"unit":"1 bunch"},{"itemName":"Hibiscus","pricePerKg":20,"quantityKg":50,"unit":"10 flowers"},{"itemName":"Lotus","pricePerKg":19,"quantityKg":8,"unit":"1 piece"},{"itemName":"Marigold Garland","pricePerKg":23,"quantityKg":15,"unit":"1 piece"},{"itemName":"Mogra Gajra","pricePerKg":19,"quantityKg":23,"unit":"1 piece"},{"itemName":"Rose Bunch","pricePerKg":33,"quantityKg":23,"unit":"1 bunch"}],"V006":[{"itemName":"Banana Chips","pricePerKg":59,"quantityKg":19,"unit":"250 g"},{"itemName":"Chikki","pricePerKg":47,"quantityKg":37,"unit":"200 g"},{"itemName":"Farsan","pricePerKg":47,"quantityKg":4,"unit":"250 g"},{"itemName":"Papad","pricePerKg":31,"quantityKg":20,"unit":"10 pieces"},{"itemName":"Roasted Chana","pricePerKg":34,"quantityKg":39,"unit":"250 g"},{"itemName":"Roasted Peanuts","pricePerKg":40,"quantityKg":37,"unit":"250 g"}],"V007":[{"itemName":"Butter","pricePerKg":58,"quantityKg":53,"unit":"100 g"},{"itemName":"Buttermilk","pricePerKg":19,"quantityKg":17,"unit":"500 ml"},{"itemName":"Curd","pricePerKg":37,"quantityKg":0,"unit":"500 g"},{"itemName":"Fresh Paneer","pricePerKg":103,"quantityKg":32,"unit":"250 g"},{"itemName":"Malai","pricePerKg":39,"quantityKg":48,"unit":"100 g"},{"itemName":"Milk","pricePerKg":34,"quantityKg":37,"unit":"1 litre"}],"V008":[{"itemName":"Coconut Malai","pricePerKg":42,"quantityKg":34,"unit":"1 piece"},{"itemName":"Lemon Soda","pricePerKg":30,"quantityKg":13,"unit":"1 glass"},{"itemName":"Orange Juice","pricePerKg":47,"quantityKg":41,"unit":"1 glass"},{"itemName":"Sugarcane Juice","pricePerKg":32,"quantityKg":28,"unit":"1 glass"},{"itemName":"Tender Coconut Water","pricePerKg":43,"quantityKg":4,"unit":"1 piece"}],"V009":[{"itemName":"Coconut Malai","pricePerKg":41,"quantityKg":29,"unit":"1 piece"},{"itemName":"Dry Coconut","pricePerKg":37,"quantityKg":20,"unit":"1 piece"},{"itemName":"Jaljeera","pricePerKg":23,"quantityKg":46,"unit":"1 glass"},{"itemName":"Lemon Soda","pricePerKg":22,"quantityKg":47,"unit":"1 glass"},{"itemName":"Orange Juice","pricePerKg":44,"quantityKg":37,"unit":"1 glass"},{"itemName":"Sugarcane Juice","pricePerKg":25,"quantityKg":12,"unit":"1 glass"},{"itemName":"Sweet Lime Juice","pricePerKg":52,"quantityKg":15,"unit":"1 glass"}],"V010":[{"itemName":"Bread Loaf","pricePerKg":48,"quantityKg":26,"unit":"1 loaf"},{"itemName":"Brun Pav","pricePerKg":24,"quantityKg":21,"unit":"1 piece"},{"itemName":"Bun Maska","pricePerKg":18,"quantityKg":22,"unit":"1 piece"},{"itemName":"Cream Roll","pricePerKg":16,"quantityKg":20,"unit":"1 piece"},{"itemName":"Khari","pricePerKg":35,"quantityKg":28,"unit":"200 g"},{"itemName":"Nankhatai","pricePerKg":50,"quantityKg":29,"unit":"200 g"},{"itemName":"Pav","pricePerKg":21,"quantityKg":54,"unit":"6 pieces"},{"itemName":"Rusk","pricePerKg":42,"quantityKg":17,"unit":"200 g"}],"V011":[{"itemName":"Betel Leaves","pricePerKg":11,"quantityKg":20,"unit":"10 leaves"},{"itemName":"Durva Bundle","pricePerKg":7,"quantityKg":59,"unit":"1 bunch"},{"itemName":"Loose Marigold","pricePerKg":34,"quantityKg":59,"unit":"250 g"},{"itemName":"Lotus","pricePerKg":27,"quantityKg":59,"unit":"1 piece"},{"itemName":"Marigold Garland","pricePerKg":25,"quantityKg":57,"unit":"1 piece"},{"itemName":"Mogra Gajra","pricePerKg":10,"quantityKg":8,"unit":"1 piece"},{"itemName":"Rose Bunch","pricePerKg":52,"quantityKg":45,"unit":"1 bunch"},{"itemName":"Tulsi Mala","pricePerKg":27,"quantityKg":40,"unit":"1 piece"}],"V012":[{"itemName":"Bottle Gourd","pricePerKg":44,"quantityKg":15,"unit":"1 piece"},{"itemName":"Brinjal","pricePerKg":45,"quantityKg":26,"unit":"1 kg"},{"itemName":"Cauliflower","pricePerKg":34,"quantityKg":27,"unit":"1 piece"},{"itemName":"Okra","pricePerKg":45,"quantityKg":54,"unit":"1 kg"},{"itemName":"Spinach","pricePerKg":28,"quantityKg":12,"unit":"1 bunch"},{"itemName":"Tomato","pricePerKg":30,"quantityKg":37,"unit":"1 kg"}],"V013":[{"itemName":"Banana Chips","pricePerKg":50,"quantityKg":24,"unit":"250 g"},{"itemName":"Bhel Mix","pricePerKg":30,"quantityKg":58,"unit":"250 g"},{"itemName":"Chikki","pricePerKg":45,"quantityKg":18,"unit":"200 g"},{"itemName":"Farsan","pricePerKg":54,"quantityKg":16,"unit":"250 g"},{"itemName":"Papad","pricePerKg":37,"quantityKg":28,"unit":"10 pieces"},{"itemName":"Puffed Rice","pricePerKg":35,"quantityKg":26,"unit":"250 g"},{"itemName":"Roasted Chana","pricePerKg":33,"quantityKg":21,"unit":"250 g"},{"itemName":"Roasted Peanuts","pricePerKg":37,"quantityKg":25,"unit":"250 g"}],"V014":[{"itemName":"Butter","pricePerKg":62,"quantityKg":19,"unit":"100 g"},{"itemName":"Buttermilk","pricePerKg":16,"quantityKg":22,"unit":"500 ml"},{"itemName":"Curd","pricePerKg":55,"quantityKg":36,"unit":"500 g"},{"itemName":"Fresh Paneer","pricePerKg":96,"quantityKg":34,"unit":"250 g"},{"itemName":"Milk","pricePerKg":31,"quantityKg":0,"unit":"1 litre"}],"V015":[{"itemName":"Apple","pricePerKg":136,"quantityKg":12,"unit":"1 kg"},{"itemName":"Banana","pricePerKg":59,"quantityKg":13,"unit":"1 dozen"},{"itemName":"Guava","pricePerKg":87,"quantityKg":3,"unit":"1 kg"},{"itemName":"Mango","pricePerKg":114,"quantityKg":24,"unit":"1 kg"},{"itemName":"Orange","pricePerKg":86,"quantityKg":9,"unit":"1 kg"},{"itemName":"Papaya","pricePerKg":36,"quantityKg":28,"unit":"1 kg"},{"itemName":"Watermelon","pricePerKg":45,"quantityKg":5,"unit":"1 piece"}],"V016":[{"itemName":"Butter","pricePerKg":58,"quantityKg":56,"unit":"100 g"},{"itemName":"Buttermilk","pricePerKg":22,"quantityKg":0,"unit":"500 ml"},{"itemName":"Curd","pricePerKg":44,"quantityKg":51,"unit":"500 g"},{"itemName":"Fresh Paneer","pricePerKg":82,"quantityKg":14,"unit":"250 g"},{"itemName":"Lassi","pricePerKg":27,"quantityKg":20,"unit":"250 ml"},{"itemName":"Malai","pricePerKg":32,"quantityKg":28,"unit":"100 g"},{"itemName":"Milk","pricePerKg":35,"quantityKg":54,"unit":"1 litre"}],"V017":[{"itemName":"Apple","pricePerKg":159,"quantityKg":34,"unit":"1 kg"},{"itemName":"Banana","pricePerKg":58,"quantityKg":31,"unit":"1 dozen"},{"itemName":"Chikoo","pricePerKg":51,"quantityKg":43,"unit":"1 kg"},{"itemName":"Guava","pricePerKg":60,"quantityKg":40,"unit":"1 kg"},{"itemName":"Mango","pricePerKg":111,"quantityKg":56,"unit":"1 kg"},{"itemName":"Orange","pricePerKg":86,"quantityKg":27,"unit":"1 kg"},{"itemName":"Papaya","pricePerKg":37,"quantityKg":12,"unit":"1 kg"},{"itemName":"Sweet Lime","pricePerKg":79,"quantityKg":35,"unit":"1 kg"},{"itemName":"Watermelon","pricePerKg":64,"quantityKg":0,"unit":"1 piece"}],"V018":[{"itemName":"Dry Coconut","pricePerKg":39,"quantityKg":44,"unit":"1 piece"},{"itemName":"Jaljeera","pricePerKg":21,"quantityKg":18,"unit":"1 glass"},{"itemName":"Lemon Soda","pricePerKg":20,"quantityKg":48,"unit":"1 glass"},{"itemName":"Orange Juice","pricePerKg":56,"quantityKg":44,"unit":"1 glass"},{"itemName":"Sweet Lime Juice","pricePerKg":52,"quantityKg":21,"unit":"1 glass"},{"itemName":"Tender Coconut Water","pricePerKg":33,"quantityKg":41,"unit":"1 piece"}],"V019":[{"itemName":"Butter","pricePerKg":51,"quantityKg":45,"unit":"100 g"},{"itemName":"Buttermilk","pricePerKg":22,"quantityKg":13,"unit":"500 ml"},{"itemName":"Fresh Paneer","pricePerKg":85,"quantityKg":21,"unit":"250 g"},{"itemName":"Malai","pricePerKg":30,"quantityKg":0,"unit":"100 g"},{"itemName":"Milk","pricePerKg":35,"quantityKg":0,"unit":"1 litre"}],"V020":[{"itemName":"Coconut Malai","pricePerKg":56,"quantityKg":18,"unit":"1 piece"},{"itemName":"Dry Coconut","pricePerKg":25,"quantityKg":55,"unit":"1 piece"},{"itemName":"Lemon Soda","pricePerKg":29,"quantityKg":31,"unit":"1 glass"},{"itemName":"Orange Juice","pricePerKg":53,"quantityKg":24,"unit":"1 glass"},{"itemName":"Sugarcane Juice","pricePerKg":28,"quantityKg":35,"unit":"1 glass"},{"itemName":"Sweet Lime Juice","pricePerKg":40,"quantityKg":25,"unit":"1 glass"},{"itemName":"Tender Coconut Water","pricePerKg":38,"quantityKg":34,"unit":"1 piece"}],"V021":[{"itemName":"Brinjal","pricePerKg":49,"quantityKg":36,"unit":"1 kg"},{"itemName":"Cabbage","pricePerKg":39,"quantityKg":7,"unit":"1 piece"},{"itemName":"Capsicum","pricePerKg":71,"quantityKg":43,"unit":"1 kg"},{"itemName":"Coriander Leaves","pricePerKg":10,"quantityKg":10,"unit":"1 bunch"},{"itemName":"Lemon","pricePerKg":16,"quantityKg":27,"unit":"6 pieces"},{"itemName":"Okra","pricePerKg":44,"quantityKg":29,"unit":"1 kg"},{"itemName":"Onion","pricePerKg":30,"quantityKg":17,"unit":"1 kg"},{"itemName":"Potato","pricePerKg":45,"quantityKg":36,"unit":"1 kg"},{"itemName":"Tomato","pricePerKg":50,"quantityKg":23,"unit":"1 kg"}],"V022":[{"itemName":"Bread Loaf","pricePerKg":50,"quantityKg":48,"unit":"1 loaf"},{"itemName":"Brun Pav","pricePerKg":25,"quantityKg":49,"unit":"1 piece"},{"itemName":"Cream Roll","pricePerKg":21,"quantityKg":36,"unit":"1 piece"},{"itemName":"Khari","pricePerKg":43,"quantityKg":8,"unit":"200 g"},{"itemName":"Nankhatai","pricePerKg":58,"quantityKg":59,"unit":"200 g"}],"V023":[{"itemName":"Betel Leaves","pricePerKg":12,"quantityKg":54,"unit":"10 leaves"},{"itemName":"Durva Bundle","pricePerKg":5,"quantityKg":59,"unit":"1 bunch"},{"itemName":"Hibiscus","pricePerKg":17,"quantityKg":6,"unit":"10 flowers"},{"itemName":"Loose Marigold","pricePerKg":23,"quantityKg":51,"unit":"250 g"},{"itemName":"Lotus","pricePerKg":25,"quantityKg":45,"unit":"1 piece"},{"itemName":"Marigold Garland","pricePerKg":31,"quantityKg":20,"unit":"1 piece"},{"itemName":"Mogra Gajra","pricePerKg":24,"quantityKg":27,"unit":"1 piece"},{"itemName":"Rose Bunch","pricePerKg":49,"quantityKg":8,"unit":"1 bunch"},{"itemName":"Tulsi Mala","pricePerKg":23,"quantityKg":7,"unit":"1 piece"}],"V024":[{"itemName":"Bhel Mix","pricePerKg":36,"quantityKg":44,"unit":"250 g"},{"itemName":"Chikki","pricePerKg":60,"quantityKg":8,"unit":"200 g"},{"itemName":"Papad","pricePerKg":33,"quantityKg":14,"unit":"10 pieces"},{"itemName":"Roasted Chana","pricePerKg":42,"quantityKg":10,"unit":"250 g"},{"itemName":"Roasted Peanuts","pricePerKg":49,"quantityKg":50,"unit":"250 g"}],"V025":[{"itemName":"Apple","pricePerKg":108,"quantityKg":14,"unit":"1 kg"},{"itemName":"Chikoo","pricePerKg":66,"quantityKg":48,"unit":"1 kg"},{"itemName":"Guava","pricePerKg":81,"quantityKg":18,"unit":"1 kg"},{"itemName":"Mango","pricePerKg":138,"quantityKg":7,"unit":"1 kg"},{"itemName":"Orange","pricePerKg":98,"quantityKg":57,"unit":"1 kg"},{"itemName":"Pomegranate","pricePerKg":188,"quantityKg":9,"unit":"1 kg"},{"itemName":"Watermelon","pricePerKg":40,"quantityKg":3,"unit":"1 piece"}]}};
+const LOCAL_DB = JSON.parse(JSON.stringify(EMBEDDED_DB)); // working copy
+let localOrderCounter = EMBEDDED_DB.lastOrderId;
+
+// Same endpoints & responses as the real backend, answered locally.
+async function embeddedApi(path, options={}){
+  await new Promise(r=>setTimeout(r,150)); // tiny delay so loading states are visible
+  const method=(options.method||'GET').toUpperCase();
+  let m;
+  if(method==='GET' && path==='/api/vendors') return LOCAL_DB.vendors.map(v=>({...v}));
+  if(method==='GET' && (m=path.match(/^\/api\/vendor\/([^/]+)\/stock$/))){
+    const vid=decodeURIComponent(m[1]);
+    if(!LOCAL_DB.vendors.some(v=>v.vendorId===vid)) throw new Error('Vendor not found: '+vid);
+    return (LOCAL_DB.stock[vid]||[]).map(s=>({...s}));
+  }
+  if(method==='POST' && path==='/api/order') return embeddedPlaceOrder(JSON.parse(options.body));
+  throw new Error('Not found: '+path);
+}
+
+function embeddedPlaceOrder(body){
+  const {vendorId, consumerId, items}=body||{};
+  if(vendorId===undefined||vendorId===null||String(vendorId).trim()==='') throw new Error('vendorId is required');
+  if(consumerId===undefined||consumerId===null||String(consumerId).trim()==='') throw new Error('consumerId is required');
+  if(!Array.isArray(items)||!items.length) throw new Error('items must be a non-empty list');
+
+  const wanted=new Map(); // merge duplicate lines of the same item
+  items.forEach(it=>{
+    if(!it||typeof it.itemName!=='string'||!it.itemName.trim()) throw new Error('every item needs an itemName');
+    if(typeof it.qty!=='number'||!(it.qty>0)) throw new Error("qty for '"+it.itemName+"' must be a number greater than 0");
+    wanted.set(it.itemName,(wanted.get(it.itemName)||0)+it.qty);
+  });
+
+  const vendor=LOCAL_DB.vendors.find(v=>v.vendorId===String(vendorId));
+  if(!vendor) throw new Error('Vendor not found: '+vendorId);
+  if(!vendor.active) throw new Error('This vendor is not accepting orders right now');
+
+  // check everything first, then apply — an order is all-or-nothing
+  const lines=[]; let total=0;
+  for(const [name,qty] of wanted){
+    const row=(LOCAL_DB.stock[vendor.vendorId]||[]).find(s=>s.itemName===name);
+    if(!row) throw new Error("'"+name+"' is not sold by this vendor");
+    if(row.quantityKg<qty) throw new Error('Not enough stock for '+name+' (only '+row.quantityKg+' left)');
+    lines.push({row,name,qty,price:row.pricePerKg}); // price comes from the DB, not the client
+    total+=qty*row.pricePerKg;
+  }
+  lines.forEach(l=>{ l.row.quantityKg=Math.round((l.row.quantityKg-l.qty)*100)/100; });
+  localOrderCounter++;
+  return {
+    orderId:'ORD-'+String(localOrderCounter).padStart(5,'0'), status:'PLACED', vendorId:vendor.vendorId,
+    consumerId:String(consumerId), total:Math.round(total*100)/100, createdAt:new Date().toISOString(),
+    items:lines.map(l=>({itemName:l.name, qty:l.qty, price:l.price}))
+  };
+}
+
+/* ================= BACKEND API ================= */
+async function apiRequest(path, options={}){
+  if(DATA_SOURCE==='embedded') return embeddedApi(path, options);
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(), API_TIMEOUT_MS);
+  try{
+    const res=await fetch(API_BASE+path, {...options, signal:ctrl.signal});
+    const text=await res.text();
+    if(!res.ok){
+      let msg=text;
+      try{ const j=JSON.parse(text); msg=j.error||j.message||text; }catch(_){}
+      throw new Error(msg ? String(msg).slice(0,160) : 'HTTP '+res.status);
+    }
+    if(!text) return null;
+    try{ return JSON.parse(text); }catch(_){ return text; }
+  }catch(e){
+    if(e.name==='AbortError') throw new Error('Request timed out');
+    if(e instanceof TypeError) throw new Error('Cannot reach backend at '+(API_BASE||location.origin)+' (is it running? is CORS enabled?)');
+    throw e;
+  }finally{ clearTimeout(timer); }
+}
+const apiGet =(path)=>apiRequest(path,{headers:{'Accept':'application/json'}});
+const apiPost=(path,body)=>apiRequest(path,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body)});
+
+function hashStr(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))|0; } return Math.abs(h); }
+
+// API vendor {vendorId,name,zoneName,active} -> UI vendor. The API has no coordinates, so each vendor
+// gets a stable pseudo-position near its zone centre (used only for the simulated tracking map).
+function normalizeVendor(raw){
+  const zone=zones.find(z=>z.name===raw.zoneName);
+  const h=hashStr(String(raw.vendorId));
+  const coords = zone ? {
+    lat: zone.coords.lat + ((h%1000)/1000-0.5)*0.005,
+    lng: zone.coords.lng + ((Math.floor(h/1000)%1000)/1000-0.5)*0.005
+  } : null;
+  return {id:raw.vendorId, name:raw.name||'Vendor', zoneName:raw.zoneName, active:raw.active!==false, category:raw.category||null, spot:raw.spot||null, coords};
+}
+
+// API stock item {itemName,pricePerKg,quantityKg,unit} -> UI product row.
+function normalizeStock(raw, idx){
+  return {idx, name:String(raw.itemName), price:Number(raw.pricePerKg)||0, unit:raw.unit||'1 kg', stock:Number(raw.quantityKg)||0};
+}
+
+// GET /api/vendors
+async function loadVendors(){
+  if(state.vendorsLoading) return;
+  const firstLoad=!state.vendorsLoaded;
+  state.vendorsLoading=true;
+  state.vendorsError='';
+  if(firstLoad && (state.screen==='zone'||state.screen==='home')) render();
+  try{
+    const data=await apiGet('/api/vendors');
+    if(!Array.isArray(data)) throw new Error('Unexpected response from /api/vendors');
+    vendors=data.map(normalizeVendor);
+    state.vendorsLoaded=true;
+    const known=new Set(zones.map(z=>z.name));
+    vendors.forEach(v=>{ if(!known.has(v.zoneName)) console.warn('Vendor "'+v.name+'" has zoneName "'+v.zoneName+'" which is not in the shared zone list — buyers will not see it.'); });
+  }catch(e){
+    if(firstLoad) state.vendorsError=e.message||'Network error';
+    else toast('Could not refresh vendors.');
+  }finally{
+    state.vendorsLoading=false;
+  }
+  if(state.screen==='zone' || (state.screen==='home' && firstLoad)) render();
+}
+
+// GET /api/vendor/{vendorId}/stock — opens the vendor page and loads its stock.
+async function openVendor(vid){
+  const v=findVendor(vid);
+  if(!v) return;
+  state.activeVendorId=v.id;
+  state.productQty={};
+  state.stock=[];
+  state.stockStatus='loading';
+  state.stockError='';
+  state.stockDemo=false;
+  go('products');
+  try{
+    const data=await apiGet('/api/vendor/'+encodeURIComponent(v.id)+'/stock');
+    if(!Array.isArray(data)) throw new Error('Unexpected stock response');
+    state.stock=data.map(normalizeStock);
+    state.stockStatus='ready';
+  }catch(e){
+    if(DEMO_STOCK_FALLBACK){
+      state.stock=DEMO_STOCK.map(normalizeStock);
+      state.stockDemo=true;
+      state.stockStatus='ready';
+    } else {
+      state.stockStatus='error';
+      state.stockError=e.message||'Network error';
+    }
+  }
+  if(state.screen==='products' && String(state.activeVendorId)===String(v.id)) render();
+}
+
+function extractOrderId(res){
+  if(res && typeof res==='object') return res.orderId ?? res.id ?? res.orderID ?? null;
+  if(typeof res==='string' && res.trim()) return res.trim();
+  return null;
+}
+
+// POST /api/order — the endpoint takes ONE vendor per order, so a multi-vendor cart is split
+// into one order per vendor. Returns which vendors succeeded / failed.
+async function placeOrders(){
+  const groups=new Map();
+  state.cart.forEach(i=>{
+    const k=String(i.vendorId);
+    if(!groups.has(k)) groups.set(k,{vendorId:i.vendorId, items:[]});
+    groups.get(k).items.push({itemName:i.name, qty:i.qty, price:i.price});
+  });
+  const placed=[], failed=[];
+  for(const g of groups.values()){
+    try{
+      const res=await apiPost('/api/order',{vendorId:g.vendorId, consumerId:state.consumerId, items:g.items});
+      placed.push({vendorId:g.vendorId, orderId:extractOrderId(res)});
+    }catch(e){
+      failed.push({vendorId:g.vendorId, error:e});
+    }
+  }
+  return {placed, failed};
+}
+
+function toast(msg, ms=1800){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>t.classList.remove('show'),ms);
+}
+
+function stopLiveTracking(){
+  if(liveTrackTimer){ clearInterval(liveTrackTimer); liveTrackTimer=null; }
+  if(trackMap){ trackMap.remove(); trackMap=null; }
+  agentMarker=null;
+}
+
+function go(screen, extra){
+  if(state.screen==='tracking' && screen!=='tracking'){ stopLiveTracking(); }
+  state.screen=screen;
+  if(extra) Object.assign(state, extra);
+  render();
+}
+
+/* ================= RENDER ================= */
+function render(){
+  const app=document.getElementById('app');
+  app.innerHTML = renderScreen();
+  bindEvents();
+}
+
+
+function renderScreen(){
+  switch(state.screen){
+    case 'login': return screenLogin();
+    case 'zone': return screenZone();
+    case 'home': return screenHome();
+    case 'products': return screenProducts();
+    case 'cart': return screenCart();
+    case 'checkout': return screenCheckout();
+    case 'payment': return screenPayment();
+    case 'tracking': return screenTracking();
+  }
+}
+
+function screenLogin(){
+  return `
+  <div class="screen active">
+    <div class="login-wrap">
+      <div class="brand-banner">
+        <div class="logo">🥬 Vendo<span class="dot">Zone</span></div>
+        <div class="tagline">Local street vendors, delivered fast.</div>
+      </div>
+      <div class="login-card">
+        <h2>Login</h2>
+        <div class="field">
+          <label>Username / Mobile</label>
+          <input id="loginUser" type="text" placeholder="e.g. Asha Patil">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="loginPass" type="password" placeholder="••••••••">
+        </div>
+        <div class="error-text" id="loginError">Please enter username and password.</div>
+        <button class="btn btn-primary" id="loginBtn">LOGIN</button>
+        <button class="btn btn-ghost" id="signupBtn">Create New Account</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function screenZone(){
+  const loading = state.vendorsLoading && !state.vendorsLoaded;
+  const failed  = !!state.vendorsError && !state.vendorsLoaded;
+  let body;
+  if(failed){
+    body = `
+      <div class="err-box">Couldn't load vendors.<br><small>${escapeHtml(state.vendorsError)}</small>
+        <button class="btn btn-teal" id="retryVendorsBtn" style="margin-top:14px;">Try again</button>
+      </div>`;
+  } else {
+    body = zones.map(z=>{
+      const count = vendorsInZone(z.id).length;
+      return `
+      <div class="zcard" data-zone="${z.id}">
+        <div class="zicon">${z.icon}</div>
+        <div style="flex:1;">
+          <div class="zname">${z.name}</div>
+          <div class="zdesc">${z.description}</div>
+          <div class="zcount">${loading ? 'Loading vendors…' : `${count} vendor${count===1?'':'s'} here`}</div>
+        </div>
+        <div style="color:var(--ink-soft);font-size:18px;">›</div>
+      </div>`;
+    }).join('');
+  }
+  return `
+  <div class="screen active">
+    <div class="topbar">
+      <div>
+        <div class="greet">Hello, ${escapeHtml(state.customerName)} 👋</div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="zone-wrap">
+        <h2 style="font-size:19px;margin:0 0 4px;">Choose your vending zone</h2>
+        <div class="zone-intro">Pick the area you're in — we'll show you the vendors delivering there.</div>
+        ${body}
+      </div>
+    </div>
+  </div>`;
+}
+
+function screenHome(){
+  const zone = findZone(state.activeZone);
+  const zoneVendors = vendorsInZone(state.activeZone);
+  const categoryCount = new Set(zoneVendors.map(v=>v.category).filter(Boolean)).size;
+  const q = state._searchQuery || '';
+  const filtered = zoneVendors.filter(v=>{
+    const s=q.trim().toLowerCase();
+    if(!s) return true;
+    return v.name.toLowerCase().includes(s) || (v.category||'').toLowerCase().includes(s) || v.zoneName.toLowerCase().includes(s) || (v.spot||'').toLowerCase().includes(s);
+  });
+  const cards = filtered.map(v=>`
+    <div class="vcard" data-vendor="${escapeHtml(String(v.id))}">
+      <div class="band" style="background:${vendorColor(v)}"></div>
+      <div class="body">
+        <div class="icon">${vendorIcon(v)}</div>
+        <div class="name">${escapeHtml(v.name)}</div>
+        <div class="meta">${v.category?escapeHtml(v.category)+'<br>':''}📍 ${escapeHtml(v.spot||v.zoneName)}</div>
+      </div>
+    </div>`).join('');
+  const loading = state.vendorsLoading && !state.vendorsLoaded;
+  const emptyMsg = loading ? 'Loading vendors…' : (zoneVendors.length ? 'No vendors match your search.' : 'No vendors in this zone yet.');
+  return `
+  <div class="screen active">
+    <div class="topbar">
+      <div>
+        <div class="greet">Hello, ${escapeHtml(state.customerName)} 👋</div>
+        <button class="zone-chip" id="changeZoneBtn">${zone.icon} ${zone.name} · change zone</button>
+      </div>
+      <button class="iconbtn" id="cartBtn">🛒 Cart${cartCount()?` <span class="badge">${cartCount()}</span>`:''}</button>
+    </div>
+    <div class="content">
+      <div class="stat-grid">
+        <div class="stat-tile"><div class="sicon">🏪</div><div class="sval">${zoneVendors.length}</div><div class="slabel">Vendors</div></div>
+        <div class="stat-tile"><div class="sicon">🗂️</div><div class="sval">${categoryCount || '—'}</div><div class="slabel">Categories</div></div>
+        <div class="stat-tile"><div class="sicon">🛒</div><div class="sval">${cartCount()}</div><div class="slabel">In Cart</div></div>
+        <div class="stat-tile"><div class="sicon">${zone.icon}</div><div class="sval" style="font-size:14px;">${zone.name}</div><div class="slabel">Your Zone</div></div>
+      </div>
+      <div class="search"><input id="searchInput" type="text" placeholder="Search vendors in ${zone.name}..." value="${escapeHtml(q)}"></div>
+      <div class="vgrid">${cards || `<div class="empty-state" style="grid-column:1/-1;">${emptyMsg}</div>`}</div>
+    </div>
+  </div>`;
+}
+
+function screenProducts(){
+  const v = findVendor(state.activeVendorId);
+  let body;
+  if(state.stockStatus==='loading'){
+    body = '<div class="empty-state">Loading stock…</div>';
+  } else if(state.stockStatus==='error'){
+    body = `
+      <div class="err-box">Couldn't load this vendor's stock.<br><small>${escapeHtml(state.stockError)}</small>
+        <button class="btn btn-teal" id="retryStockBtn" style="margin-top:14px;">Try again</button>
+      </div>`;
+  } else if(!state.stock.length){
+    body = '<div class="empty-state">This vendor has no items in stock right now.</div>';
+  } else {
+    const rows = state.stock.map(p=>{
+      const qty = state.productQty[p.idx] || 1;
+      const out = p.stock<=0;
+      return `
+      <div class="prow">
+        <div style="flex:1;">
+          <div class="pname">${escapeHtml(p.name)}</div>
+          <div class="pprice">₹${p.price.toFixed(2)} / ${escapeHtml(p.unit)}</div>
+          <div class="pstock">${out ? 'Out of stock' : 'In stock: '+p.stock}</div>
+          <button class="addbtn" data-add="${p.idx}" ${out?'disabled':''}>Add to Cart</button>
+        </div>
+        ${out ? '' : `<div class="qty-row">
+          <button data-dec="${p.idx}">−</button>
+          <div class="qval" id="qty-${p.idx}">${qty}</div>
+          <button data-inc="${p.idx}">+</button>
+        </div>`}
+      </div>`;
+    }).join('');
+    body = (state.stockDemo ? '<div class="demo-note">Demo stock shown — the live stock endpoint isn\'t available yet.</div>' : '') + rows;
+  }
+  return `
+  <div class="screen active">
+    <div class="topbar">
+      <button class="backbtn" id="backBtn">←</button>
+      <div style="flex:1;text-align:center;">
+        <div style="font-weight:700;font-size:16px;">${escapeHtml(v?v.name:'Vendor')}</div>
+      </div>
+      <button class="iconbtn" id="cartBtn">🛒${cartCount()?` <span class="badge">${cartCount()}</span>`:''}</button>
+    </div>
+    <div class="content">${body}</div>
+  </div>`;
+}
+
+function screenCart(){
+  const items = state.cart.map((item,idx)=>{
+    const v=findVendor(item.vendorId);
+    return `
+    <div class="citem">
+      <div>
+        <div class="cname">${escapeHtml(item.name)}</div>
+        <div class="cvendor">${escapeHtml(v?v.name:'Vendor')}</div>
+        <div class="cline">${item.qty} × ₹${item.price.toFixed(2)} = <strong>₹${(item.qty*item.price).toFixed(2)}</strong></div>
+      </div>
+      <button class="removebtn" data-remove="${idx}">Remove</button>
+    </div>`;
+  }).join('');
+  return `
+  <div class="screen active">
+    <div class="topbar">
+      <button class="backbtn" id="backBtn">←</button>
+      <div style="font-weight:700;font-size:17px;">Your Cart</div>
+      <div style="width:24px;"></div>
+    </div>
+    <div class="content">
+      ${state.cart.length ? items : '<div class="empty-state">Your cart is empty.</div>'}
+    </div>
+    <div class="footer-bar">
+      <div class="total-row"><span>Total</span><span>₹${cartTotal().toFixed(2)}</span></div>
+      <button class="btn btn-teal" id="checkoutBtn" style="margin-top:0;">Proceed to Checkout</button>
+    </div>
+  </div>`;
+}
+
+function screenCheckout(){
+  return `
+  <div class="screen active">
+    <div class="topbar">
+      <button class="backbtn" id="backBtn">←</button>
+      <div style="font-weight:700;font-size:17px;">Delivery Details</div>
+      <div style="width:24px;"></div>
+    </div>
+    <div class="content">
+      <div class="field">
+        <label>Full Name</label>
+        <input id="ckName" type="text" value="${escapeHtml(state.customerName)}">
+      </div>
+      <div class="field">
+        <label>Delivery Address</label>
+        <textarea id="ckAddress" rows="3" placeholder="House no, street, landmark, area">${escapeHtml(state.deliveryAddress)}</textarea>
+      </div>
+      <div class="field">
+        <label>Phone Number</label>
+        <input id="ckPhone" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit mobile number" value="${escapeHtml(state.phone)}">
+      </div>
+      <div class="error-text" id="ckError">Please fill in address and phone number.</div>
+    </div>
+    <div class="footer-bar">
+      <div class="total-row"><span>Order Total</span><span>₹${cartTotal().toFixed(2)}</span></div>
+      <button class="btn btn-teal" id="proceedPayBtn" style="margin-top:0;">Proceed to Payment</button>
+    </div>
+  </div>`;
+}
+
+function screenPayment(){
+  return `
+  <div class="screen active">
+    <div class="topbar">
+      <button class="backbtn" id="backBtn">←</button>
+      <div style="font-weight:700;font-size:17px;">Payment</div>
+      <div style="width:24px;"></div>
+    </div>
+    <div class="content">
+      <div style="text-align:center;margin-bottom:22px;">
+        <div style="color:var(--ink-soft);font-size:13px;">Amount Payable</div>
+        <div style="font-family:'Space Grotesk';font-weight:700;font-size:28px;">₹${cartTotal().toFixed(2)}</div>
+      </div>
+      <div class="pay-option" id="payOnline">
+        <div class="emoji">💳</div>
+        <div><div class="plabel">Pay Online</div><div class="psub">Card, UPI, wallet</div></div>
+      </div>
+      <div class="pay-option" id="payCod">
+        <div class="emoji">💵</div>
+        <div><div class="plabel">Payment on Delivery</div><div class="psub">Pay cash when your order arrives</div></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function screenTracking(){
+  const rows = stages.map((s,i)=>`
+    <div class="stage ${i<=state.stageIndex?'done':''}">
+      <div class="dot">${i<=state.stageIndex?'✓':''}</div>
+      <div class="slabel">${s}</div>
+    </div>`).join('');
+  const finished = state.stageIndex >= stages.length-1;
+  const isLive = state.stageIndex===2; // "Out for Delivery"
+
+  let etaBlock='';
+  if(isLive){
+    const remaining=Math.max(1, Math.round((1-state.agentProgress)*9)); // ~9 min simulated route
+    etaBlock=`
+      <div class="eta-box">
+        <div><div class="etalabel">Estimated arrival</div><div class="etaval">${remaining} min</div></div>
+        <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+      </div>`;
+  } else if(finished){
+    etaBlock=`
+      <div class="eta-box">
+        <div><div class="etalabel">Status</div><div class="etaval">Delivered to your address</div></div>
+        <div style="font-size:20px;">✅</div>
+      </div>`;
+  }
+
+  let controls;
+  if(isLive){
+    controls=`<div class="footer-bar">
+      <div style="text-align:center;font-size:12.5px;color:var(--ink-soft);padding:6px 0;">Your delivery agent is on the way — tracking updates automatically.</div>
+      <button class="btn btn-ghost" id="homeBtn" style="margin-top:0;">Back to Home</button>
+    </div>`;
+  } else {
+    controls=`<div class="footer-bar">
+      <button class="btn btn-marigold" id="advanceBtn" style="margin-top:0;" ${finished?'disabled':''}>${finished?'Order Delivered ✓':'Simulate Next Stage'}</button>
+      <button class="btn btn-ghost" id="homeBtn" style="margin-top:0;">Back to Home</button>
+    </div>`;
+  }
+
+  return `
+  <div class="screen active">
+    <div class="topbar">
+      <div style="font-weight:700;font-size:17px;">Track Your Order</div>
+      <div></div>
+    </div>
+    <div class="content">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:16px;font-size:13.5px;color:var(--ink-soft);">
+        Delivering to<br><strong style="color:var(--ink);">${escapeHtml(state.deliveryAddress || 'Address on file')}</strong>${state.orderIds.length?`<div style="margin-top:8px;">Order ID: <strong style="color:var(--ink);">${state.orderIds.map(id=>escapeHtml(String(id))).join(', ')}</strong></div>`:''}
+      </div>
+      ${etaBlock}
+      <div id="trackMap"></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px 16px;">
+        ${rows}
+      </div>
+    </div>
+    ${controls}
+  </div>`;
+}
+
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+
+/* ---- mobile number validation: exactly 10 digits ---- */
+const MOBILE_ERROR='Invalid mobile number. Please enter exactly 10 digits.';
+function isMobileLike(v){ return /^[+\d][\d\s\-+]*$/.test(v); }
+function isValidMobile(v){ return /^\d{10}$/.test(v.replace(/[\s\-]/g,'')); }
+function showErr(id,msg){ const el=document.getElementById(id); el.textContent=msg; el.style.display='block'; }
+function digitsOnly(input){ input.oninput=()=>{ input.value=input.value.replace(/\D/g,'').slice(0,10); }; }
+
+/* ================= EVENTS ================= */
+function bindEvents(){
+  const app=document.getElementById('app');
+
+  if(state.screen==='login'){
+    document.getElementById('loginBtn').onclick=()=>{
+      const u=document.getElementById('loginUser').value.trim();
+      const p=document.getElementById('loginPass').value;
+      if(!u || !p){ showErr('loginError','Please enter username and password.'); return; }
+      if(isMobileLike(u) && !isValidMobile(u)){ showErr('loginError',MOBILE_ERROR); return; }
+      state.customerName=u;
+      state.consumerId=u;   // no consumer API yet — the login username/mobile is used as consumerId
+      go('zone');
+      loadVendors();        // GET /api/vendors
+    };
+    document.getElementById('signupBtn').onclick=()=>toast('Signup can be connected to your database later.');
+  }
+
+  if(state.screen==='zone'){
+    app.querySelectorAll('.zcard').forEach(el=>{
+      el.onclick=()=>go('home',{activeZone:el.dataset.zone, _searchQuery:''});
+    });
+    const retry=document.getElementById('retryVendorsBtn');
+    if(retry) retry.onclick=()=>loadVendors();
+  }
+
+  if(state.screen==='home'){
+    document.getElementById('cartBtn').onclick=()=>go('cart');
+    document.getElementById('changeZoneBtn').onclick=()=>{ go('zone'); loadVendors(); }; // refresh vendor list
+    document.getElementById('searchInput').oninput=(e)=>{
+      state._searchQuery=e.target.value;
+      render();
+      document.getElementById('searchInput').focus();
+      const val=document.getElementById('searchInput').value;
+      document.getElementById('searchInput').setSelectionRange(val.length,val.length);
+    };
+    app.querySelectorAll('.vcard').forEach(el=>{
+      el.onclick=()=>openVendor(el.dataset.vendor);   // GET /api/vendor/{id}/stock
+    });
+  }
+
+  if(state.screen==='products'){
+    document.getElementById('backBtn').onclick=()=>go('home');
+    document.getElementById('cartBtn').onclick=()=>go('cart');
+    const retry=document.getElementById('retryStockBtn');
+    if(retry) retry.onclick=()=>openVendor(state.activeVendorId);
+    app.querySelectorAll('[data-inc]').forEach(btn=>{
+      btn.onclick=()=>{
+        const idx=Number(btn.dataset.inc), p=state.stock[idx];
+        const cur=state.productQty[idx]||1;
+        state.productQty[idx]=Math.min(cur+1,p.stock);
+        document.getElementById('qty-'+idx).textContent=state.productQty[idx];
+      };
+    });
+    app.querySelectorAll('[data-dec]').forEach(btn=>{
+      btn.onclick=()=>{
+        const idx=Number(btn.dataset.dec);
+        const cur=state.productQty[idx]||1;
+        state.productQty[idx]=Math.max(cur-1,1);
+        document.getElementById('qty-'+idx).textContent=state.productQty[idx];
+      };
+    });
+    app.querySelectorAll('[data-add]').forEach(btn=>{
+      btn.onclick=()=>{
+        const idx=Number(btn.dataset.add), p=state.stock[idx];
+        if(!p || p.stock<=0) return;
+        const qty=Math.min(state.productQty[idx]||1, p.stock);
+        const existing=state.cart.find(i=>String(i.vendorId)===String(state.activeVendorId) && i.name===p.name);
+        if(existing) existing.qty=Math.min(existing.qty+qty, p.stock);
+        else state.cart.push({vendorId:state.activeVendorId, name:p.name, price:p.price, unit:p.unit, qty});
+        toast(`${qty} × ${p.name} added to cart.`);
+        render();
+      };
+    });
+  }
+
+  if(state.screen==='cart'){
+    document.getElementById('backBtn').onclick=()=>go(state.activeVendorId!==null && state.stockStatus==='ready' ? 'products' : 'home');
+    document.getElementById('checkoutBtn').onclick=()=>{
+      if(!state.cart.length){ toast('Your cart is empty. Add some products first.'); return; }
+      go('checkout');
+    };
+    app.querySelectorAll('[data-remove]').forEach(btn=>{
+      btn.onclick=()=>{
+        const idx=Number(btn.dataset.remove);
+        state.cart.splice(idx,1);
+        render();
+      };
+    });
+  }
+
+  if(state.screen==='checkout'){
+    document.getElementById('backBtn').onclick=()=>go('cart');
+    digitsOnly(document.getElementById('ckPhone'));
+    document.getElementById('proceedPayBtn').onclick=()=>{
+      const addr=document.getElementById('ckAddress').value.trim();
+      const phone=document.getElementById('ckPhone').value.trim();
+      const name=document.getElementById('ckName').value.trim();
+      if(!addr || !phone){ showErr('ckError','Please fill in address and phone number.'); return; }
+      if(!isValidMobile(phone)){ showErr('ckError',MOBILE_ERROR); return; }
+      state.deliveryAddress=addr; state.phone=phone; if(name) state.customerName=name;
+      go('payment');
+    };
+  }
+
+  if(state.screen==='payment'){
+    document.getElementById('backBtn').onclick=()=>go('checkout');
+
+    // Payment itself stays simulated; the order is sent to the backend (POST /api/order) when the buyer confirms.
+    const complete=async(successMsg)=>{
+      if(state.placingOrder) return;
+      if(!state.cart.length){ toast('Your cart is empty.'); go('home'); return; }
+      state.placingOrder=true;
+      document.querySelectorAll('.pay-option').forEach(el=>{ el.style.opacity='.5'; el.style.pointerEvents='none'; });
+      toast('Placing your order…');
+
+      const vendorIds=[...new Set(state.cart.map(i=>String(i.vendorId)))];
+      const {placed, failed}=await placeOrders();
+      state.placingOrder=false;
+
+      if(failed.length){
+        // Keep only the vendors whose order failed in the cart, so a retry never duplicates a successful order.
+        const failedIds=new Set(failed.map(f=>String(f.vendorId)));
+        state.cart=state.cart.filter(i=>failedIds.has(String(i.vendorId)));
+        const reason=failed[0].error && failed[0].error.message ? failed[0].error.message : 'Network error';
+        toast((placed.length ? 'Some orders went through, but one failed: ' : 'Could not place order: ')+reason, 4000);
+        render(); // stays on the payment screen
+        return;
+      }
+
+      toast(successMsg);
+
+      // Pickup point = centroid of the vendors in this order (agent collects from each stall).
+      const vendorCoords=vendorIds.map(vid=>findVendor(vid)).filter(v=>v && v.coords).map(v=>v.coords);
+      const zone=findZone(state.activeZone);
+      const originLat=vendorCoords.length ? vendorCoords.reduce((s,c)=>s+c.lat,0)/vendorCoords.length : zone.coords.lat;
+      const originLng=vendorCoords.length ? vendorCoords.reduce((s,c)=>s+c.lng,0)/vendorCoords.length : zone.coords.lng;
+
+      // Drop-off point = a fixed "home" location within the chosen zone.
+      const destination={lat:zone.coords.lat+zone.homeOffset.lat, lng:zone.coords.lng+zone.homeOffset.lng};
+
+      state.orderOrigin={lat:originLat,lng:originLng};
+      state.orderDestination=destination;
+      state.orderIds=placed.map(p=>p.orderId).filter(id=>id!==null && id!==undefined);
+      state.agentProgress=0;
+      state.cart=[];
+      state.stageIndex=0;
+      setTimeout(()=>go('tracking'),400);
+    };
+    document.getElementById('payOnline').onclick=()=>complete('Payment successful! Your order has been placed.');
+    document.getElementById('payCod').onclick=()=>complete('Order placed! You will pay on delivery.');
+  }
+
+  if(state.screen==='tracking'){
+    const btn=document.getElementById('advanceBtn');
+    if(btn) btn.onclick=()=>{
+      // Manual clicks only cover Order Placed -> Preparing -> Out for Delivery.
+      // Out for Delivery -> Delivered happens automatically as the live map animates.
+      if(state.stageIndex < 2){ state.stageIndex++; render(); }
+    };
+    document.getElementById('homeBtn').onclick=()=>go('home');
+    initTrackingMap();
+  }
+}
+
+/* ================= LIVE MAP TRACKING ================= */
+function emojiIcon(emoji, cls){
+  return L.divIcon({html:`<div class="${cls}">${emoji}</div>`, className:'', iconSize:[30,30], iconAnchor:[15,15]});
+}
+
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+// Piecewise interpolation along origin -> mid -> destination, t in [0,1]
+function pointOnRoute(origin, mid, dest, t){
+  if(t<=0.5){
+    const k=t/0.5;
+    return {lat:lerp(origin.lat,mid.lat,k), lng:lerp(origin.lng,mid.lng,k)};
+  }
+  const k=(t-0.5)/0.5;
+  return {lat:lerp(mid.lat,dest.lat,k), lng:lerp(mid.lng,dest.lng,k)};
+}
+
+function initTrackingMap(){
+  stopLiveTracking(); // clear any previous map/timer before building a fresh one
+
+  const mapEl=document.getElementById('trackMap');
+  if(!mapEl) return;
+
+  if(typeof L==='undefined'){
+    mapEl.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:13px;color:var(--ink-soft);">Map unavailable — check your connection.</div>';
+    return;
+  }
+
+  const zone=findZone(state.activeZone);
+  const origin = state.orderOrigin || zone.coords;
+  const dest = state.orderDestination || {lat:zone.coords.lat+zone.homeOffset.lat, lng:zone.coords.lng+zone.homeOffset.lng};
+
+  // Slight perpendicular offset on the midpoint so the route isn't a dead-straight line.
+  const midRaw={lat:(origin.lat+dest.lat)/2, lng:(origin.lng+dest.lng)/2};
+  const dx=dest.lng-origin.lng, dy=dest.lat-origin.lat;
+  const mid={lat:midRaw.lat + dx*0.18, lng:midRaw.lng - dy*0.18};
+
+  trackMap = L.map('trackMap', {zoomControl:false, scrollWheelZoom:false, attributionControl:true});
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:19,
+    attribution:'&copy; OpenStreetMap contributors'
+  }).addTo(trackMap);
+
+  const bounds=L.latLngBounds([[origin.lat,origin.lng],[mid.lat,mid.lng],[dest.lat,dest.lng]]);
+  trackMap.fitBounds(bounds, {padding:[26,26]});
+
+  L.polyline([[origin.lat,origin.lng],[mid.lat,mid.lng],[dest.lat,dest.lng]], {
+    color:'#1C6E64', weight:4, opacity:0.6, dashArray:'1,9', lineCap:'round'
+  }).addTo(trackMap);
+
+  L.marker([origin.lat,origin.lng], {icon:emojiIcon('🧺','stall-pin')}).addTo(trackMap).bindPopup('Pickup: street vendor');
+  L.marker([dest.lat,dest.lng], {icon:emojiIcon('🏠','home-pin')}).addTo(trackMap).bindPopup('Delivery address');
+
+  const startPos = pointOnRoute(origin, mid, dest, state.agentProgress);
+  agentMarker = L.marker([startPos.lat,startPos.lng], {icon:emojiIcon('🛵','agent-pin')}).addTo(trackMap).bindPopup('Delivery agent');
+
+  // Only stages "Order Placed" and "Preparing Order" keep the agent parked at the stall.
+  // "Out for Delivery" drives the live animation to the customer's address.
+  if(state.stageIndex===2 && state.agentProgress<1){
+    const tickMs=120, stepsTotal=75; // ~9s simulated trip
+    const increment=1/stepsTotal;
+    liveTrackTimer=setInterval(()=>{
+      state.agentProgress=Math.min(1, state.agentProgress+increment);
+      const pos=pointOnRoute(origin, mid, dest, state.agentProgress);
+      if(agentMarker) agentMarker.setLatLng([pos.lat,pos.lng]);
+
+      // refresh the ETA text without a full re-render
+      const etaVal=document.querySelector('.eta-box .etaval');
+      if(etaVal){ etaVal.textContent = Math.max(1, Math.round((1-state.agentProgress)*9)) + ' min'; }
+
+      if(state.agentProgress>=1){
+        clearInterval(liveTrackTimer);
+        liveTrackTimer=null;
+        state.stageIndex=3;
+        render(); // final render shows "Delivered" state
+      }
+    }, tickMs);
+  }
+}
+
+render();
+</script>
+</body>
+</html>

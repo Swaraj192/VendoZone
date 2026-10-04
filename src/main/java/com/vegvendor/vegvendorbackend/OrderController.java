@@ -27,11 +27,56 @@ public class OrderController {
     public String placeOrder(@RequestBody Order order) throws ExecutionException, InterruptedException {
         Firestore db = FirestoreClient.getFirestore();
 
+        // Fetch the vendor's current stock once, up front
+        ApiFuture<QuerySnapshot> stockFuture = db.collection("vendors")
+                .document(order.getVendorId())
+                .collection("stock")
+                .get();
+
+        List<QueryDocumentSnapshot> stockDocs = stockFuture.get().getDocuments();
+
+        // Validate every ordered item against that real stock
+        List<QueryDocumentSnapshot> matchedDocs = new ArrayList<>();
+
+        for (OrderItem orderItem : order.getItems()) {
+
+            QueryDocumentSnapshot matchedDoc = null;
+
+            for (QueryDocumentSnapshot doc : stockDocs) {
+                StockItem stockItem = doc.toObject(StockItem.class);
+                if (stockItem.getItemName().equalsIgnoreCase(orderItem.getItemName())) {
+                    matchedDoc = doc;
+                    break;
+                }
+            }
+
+            if (matchedDoc == null) {
+                return "Order failed: " + orderItem.getItemName() + " is not available from this vendor.";
+            }
+
+            StockItem matchedStock = matchedDoc.toObject(StockItem.class);
+
+            if (orderItem.getQty() > matchedStock.getQuantityKg()) {
+                return "Order failed: only " + matchedStock.getQuantityKg() + " kg of " + orderItem.getItemName() + " available.";
+            }
+
+            matchedDocs.add(matchedDoc);
+        }
+
+        // Every item checks out — now actually place the order
         String orderId = UUID.randomUUID().toString();
         order.setOrderId(orderId);
         order.setStatus("placed");
 
         db.collection("orders").document(orderId).set(order);
+
+        // Reduce stock by the ordered quantity for each item
+        for (int i = 0; i < order.getItems().size(); i++) {
+            OrderItem orderItem = order.getItems().get(i);
+            StockItem matchedStock = matchedDocs.get(i).toObject(StockItem.class);
+            double newQty = matchedStock.getQuantityKg() - orderItem.getQty();
+            matchedDocs.get(i).getReference().update("quantityKg", newQty);
+        }
 
         return "Order placed successfully! Order ID: " + orderId;
     }
