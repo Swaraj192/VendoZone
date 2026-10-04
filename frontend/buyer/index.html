@@ -180,7 +180,7 @@
 /* ================= CONFIG ================= */
 // Base URL of the backend. '' = same origin (this page is served by the backend itself).
 // If the backend runs elsewhere, set e.g. 'http://localhost:8080' (the backend must then allow CORS).
-const BACKEND_URL = 'http://localhost:8080'; // only used when DATA_SOURCE = 'backend' — CHANGE to your backend address (use your PC's IP when testing on a phone)
+const BACKEND_URL = 'https://vendozone.onrender.com'; // only used when DATA_SOURCE = 'backend' — CHANGE to your backend address (use your PC's IP when testing on a phone)
 // Opened as a file (file://) -> talk to BACKEND_URL. Served by the backend itself -> same origin.
 // You can also override with ?api=http://host:port in the page URL.
 const API_BASE = new URLSearchParams(location.search).get('api') || (location.protocol==='file:' ? BACKEND_URL : '');
