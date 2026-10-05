@@ -1,5 +1,5 @@
 package com.vegvendor.vegvendorbackend;
-
+import org.springframework.http.ResponseEntity;
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
@@ -69,8 +69,17 @@ public class VendorController {
     }
 
     @PostMapping("/api/vendor")
-    public String registerVendor(@RequestBody Vendor vendor) throws ExecutionException, InterruptedException {
+    public ResponseEntity<String> registerVendor(@RequestBody Vendor vendor) throws ExecutionException, InterruptedException {
         Firestore db = FirestoreClient.getFirestore();
+
+        // Check if this phone number is already registered
+        ApiFuture<QuerySnapshot> existing = db.collection("vendors")
+                .whereEqualTo("phone", vendor.getPhone())
+                .get();
+
+        if (!existing.get().getDocuments().isEmpty()) {
+            return ResponseEntity.badRequest().body("This mobile number is already registered.");
+        }
 
         String vendorId = UUID.randomUUID().toString();
         vendor.setVendorId(vendorId);
@@ -78,6 +87,6 @@ public class VendorController {
 
         db.collection("vendors").document(vendorId).set(vendor);
 
-        return vendorId;
+        return ResponseEntity.ok(vendorId);
     }
-}
+    }
