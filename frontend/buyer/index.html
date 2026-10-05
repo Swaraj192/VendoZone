@@ -183,7 +183,7 @@
 const BACKEND_URL = 'https://vendozone.onrender.com'; // only used when DATA_SOURCE = 'backend' — CHANGE to your backend address (use your PC's IP when testing on a phone)
 // Opened as a file (file://) -> talk to BACKEND_URL. Served by the backend itself -> same origin.
 // You can also override with ?api=http://host:port in the page URL.
-const API_BASE = new URLSearchParams(location.search).get('api') || (location.protocol==='file:' ? BACKEND_URL : '');
+const API_BASE = new URLSearchParams(location.search).get('api') || BACKEND_URL;
 const API_TIMEOUT_MS = 10000;
 
 // WHERE THE DATA COMES FROM
