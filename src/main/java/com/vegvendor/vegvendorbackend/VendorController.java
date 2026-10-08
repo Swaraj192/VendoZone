@@ -1,10 +1,11 @@
 package com.vegvendor.vegvendorbackend;
-import org.springframework.http.ResponseEntity;
+
 import com.google.api.core.ApiFuture;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
 import com.google.firebase.cloud.FirestoreClient;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
@@ -30,7 +32,9 @@ public class VendorController {
 
         List<Vendor> vendors = new ArrayList<>();
         for (QueryDocumentSnapshot document : documents) {
-            vendors.add(document.toObject(Vendor.class));
+            Vendor v = document.toObject(Vendor.class);
+            v.setPassword(null); // never expose passwords through a public endpoint
+            vendors.add(v);
         }
 
         return vendors;
@@ -72,7 +76,7 @@ public class VendorController {
     public ResponseEntity<String> registerVendor(@RequestBody Vendor vendor) throws ExecutionException, InterruptedException {
         Firestore db = FirestoreClient.getFirestore();
 
-        // Check if this phone number is already registered
+        // One account per mobile number
         ApiFuture<QuerySnapshot> existing = db.collection("vendors")
                 .whereEqualTo("phone", vendor.getPhone())
                 .get();
@@ -89,4 +93,34 @@ public class VendorController {
 
         return ResponseEntity.ok(vendorId);
     }
+
+    @PostMapping("/api/vendor/login")
+    public ResponseEntity<Map<String, String>> loginVendor(@RequestBody Map<String, String> credentials) throws ExecutionException, InterruptedException {
+        Firestore db = FirestoreClient.getFirestore();
+
+        String phone = credentials.get("phone");
+        String password = credentials.get("password");
+
+        ApiFuture<QuerySnapshot> query = db.collection("vendors")
+                .whereEqualTo("phone", phone)
+                .get();
+
+        List<QueryDocumentSnapshot> docs = query.get().getDocuments();
+
+        if (docs.isEmpty()) {
+            return ResponseEntity.status(401).body(Map.of("error", "No account found with this mobile number."));
+        }
+
+        Vendor vendor = docs.get(0).toObject(Vendor.class);
+
+        if (password == null || !password.equals(vendor.getPassword())) {
+            return ResponseEntity.status(401).body(Map.of("error", "Incorrect password."));
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "vendorId", vendor.getVendorId(),
+                "name", vendor.getName(),
+                "zoneName", vendor.getZoneName()
+        ));
     }
+}

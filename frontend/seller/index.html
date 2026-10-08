@@ -428,22 +428,16 @@
             })
         })
         .then(function(response) {
-            if (!response.ok) {
-                throw new Error("Server returned an error: " + response.status);
-            }
-            return response.text();
+            return response.text().then(function(text) {
+                if (!response.ok) {
+                    throw new Error(text || ("Server error " + response.status));
+                }
+                return text;
+            });
         })
-        .then(function(returnedVendorId) {
+        .then(function() {
 
-            currentVendorId = returnedVendorId;
-
-            // Save vendor locally too, since login() still checks against this
-            vendor.name = name;
-            vendor.phone = phone;
-            vendor.password = password;
-            vendor.zone = zone;
-
-            alert("Registration successful! Your vendor ID: " + currentVendorId);
+            alert("Registration successful! Please log in with your mobile number and password.");
 
             // Go to login
 
@@ -452,7 +446,11 @@
         })
         .catch(function(error) {
 
-            alert("Could not reach the server. Is the backend running? " + error);
+            if (error instanceof TypeError) {
+                alert("Could not reach the server. It may be waking up - wait a few seconds and try again.");
+            } else {
+                alert(error.message);
+            }
 
         });
 
@@ -507,10 +505,46 @@
             document.getElementById("loginPassword").value;
 
 
-        if (
-            phone === vendor.phone &&
-            password === vendor.password
-        ) {
+        if (phone === "" || password === "") {
+
+            alert("Please enter mobile number and password");
+
+            return;
+        }
+
+
+        fetch('https://vendozone.onrender.com/api/vendor/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                phone: phone,
+                password: password
+            })
+        })
+        .then(function(response) {
+            return response.text().then(function(text) {
+
+                let data = {};
+
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {}
+
+                if (!response.ok) {
+                    throw new Error(data.error || ("Login failed (server error " + response.status + ")"));
+                }
+
+                return data;
+            });
+        })
+        .then(function(data) {
+
+            // Remember who is logged in
+            currentVendorId = data.vendorId;
+            vendor.name = data.name;
+            vendor.phone = phone;
+            vendor.zone = data.zoneName;
+
 
             // Hide login
 
@@ -547,15 +581,96 @@
                 .innerHTML =
                 vendor.zone;
 
-        }
 
-        else {
+            // Bring back this vendor's saved data from the database
+            loadStock();
+            refreshStats();
 
-            alert(
-                "Wrong mobile number or password"
-            );
+        })
+        .catch(function(error) {
 
-        }
+            if (error instanceof TypeError) {
+                alert("Could not reach the server. It may be waking up - wait a few seconds and try again.");
+            } else {
+                alert(error.message);
+            }
+
+        });
+
+    }
+
+
+    // ================= LOAD SAVED DATA AFTER LOGIN =================
+
+    // Fills "My Vegetables" and the vegetable count from the database
+    function loadStock() {
+
+        fetch('https://vendozone.onrender.com/api/vendor/' + currentVendorId + '/stock')
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error("Server returned an error: " + response.status);
+            }
+            return response.json();
+        })
+        .then(function(items) {
+
+            vegetables = items.map(function(i) {
+                return {
+                    name: i.itemName,
+                    quantity: i.quantityKg,
+                    price: i.pricePerKg
+                };
+            });
+
+            document
+                .getElementById("vegCount")
+                .innerHTML =
+                vegetables.length;
+
+        })
+        .catch(function() {
+            // Not critical - the buttons still work and fetch fresh data when clicked
+        });
+
+    }
+
+
+    // Fills the Orders and Income tiles from the database
+    function refreshStats() {
+
+        fetch('https://vendozone.onrender.com/api/vendor/' + currentVendorId + '/orders')
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error("Server returned an error: " + response.status);
+            }
+            return response.json();
+        })
+        .then(function(orders) {
+
+            let total = 0;
+
+            orders.forEach(function(o) {
+                if (o.status === "fulfilled") {
+                    o.items.forEach(function(item) {
+                        total += item.qty * item.price;
+                    });
+                }
+            });
+
+            document
+                .getElementById("ordersCount")
+                .innerHTML =
+                orders.length;
+
+            document
+                .getElementById("incomeValue")
+                .innerHTML =
+                "₹" + total;
+
+        })
+        .catch(function() {
+            // Not critical
+        });
 
     }
 
@@ -587,6 +702,20 @@
         }
 
 
+        name = name.trim();
+
+        if (
+            name === "" ||
+            isNaN(parseFloat(quantity)) ||
+            isNaN(parseFloat(price))
+        ) {
+
+            alert("Please enter a name, and valid numbers for quantity and price.");
+
+            return;
+        }
+
+
         fetch('https://vendozone.onrender.com/api/vendor/' + currentVendorId + '/stock', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -604,15 +733,29 @@
         })
         .then(function(data) {
 
-            vegetables.push({
-
-                name: name,
-
-                quantity: quantity,
-
-                price: price
-
+            let existing = vegetables.find(function(v) {
+                return v.name === name;
             });
+
+            if (existing) {
+
+                existing.quantity = quantity;
+
+                existing.price = price;
+
+            } else {
+
+                vegetables.push({
+
+                    name: name,
+
+                    quantity: quantity,
+
+                    price: price
+
+                });
+
+            }
 
 
             document
@@ -833,6 +976,19 @@
     // ================= LOGOUT =================
 
     function logout() {
+
+        // Forget the current vendor so nothing leaks to the next login
+        currentVendorId = null;
+        vendor = {};
+        vegetables = [];
+
+        document.getElementById("output").innerHTML = "";
+        document.getElementById("vegCount").innerHTML = "0";
+        document.getElementById("ordersCount").innerHTML = "0";
+        document.getElementById("incomeValue").innerHTML = "₹0";
+        document.getElementById("loginPhone").value = "";
+        document.getElementById("loginPassword").value = "";
+
 
         document
             .getElementById("dashboardPage")
