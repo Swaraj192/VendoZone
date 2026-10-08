@@ -165,6 +165,9 @@
   .eta-box .etaval{font-family:'Space Grotesk';font-weight:700;font-size:16px;margin-top:2px;}
   .agent-pin{font-size:22px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.25));}
   .stall-pin,.home-pin{font-size:20px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.2));}
+  .leaflet-tooltip.eta-label{background:#fff;color:var(--ink);border:none;border-radius:8px;padding:5px 10px;font-weight:700;font-size:12.5px;box-shadow:0 2px 10px rgba(0,0,0,.22);}
+  .leaflet-tooltip-top.eta-label::before{border-top-color:#fff;}
+  .map-note{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:500;background:#fff;border-radius:20px;padding:6px 14px;font-size:12px;font-weight:600;color:var(--ink-soft);box-shadow:0 2px 8px rgba(0,0,0,.18);pointer-events:none;}
   .addbtn:disabled{opacity:.45;cursor:not-allowed;}
   .err-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px 18px;text-align:center;color:var(--chili);font-size:14px;font-weight:600;}
   .err-box small{display:block;margin-top:6px;color:var(--ink-soft);font-weight:400;word-break:break-word;}
@@ -184,7 +187,7 @@ const BACKEND_URL = 'https://vendozone.onrender.com'; // only used when DATA_SOU
 // Opened as a file (file://) -> talk to BACKEND_URL. Served by the backend itself -> same origin.
 // You can also override with ?api=http://host:port in the page URL.
 const API_BASE = new URLSearchParams(location.search).get('api') || BACKEND_URL;
-const API_TIMEOUT_MS = 10000;
+const API_TIMEOUT_MS = 60000;
 
 // WHERE THE DATA COMES FROM
 //   'embedded' -> the database below is built into this file; works offline, no server needed (default)
@@ -247,6 +250,7 @@ let state = {
   orderOrigin:null,      // {lat,lng} pickup point (centroid of vendors in the order)
   orderDestination:null, // {lat,lng} customer's delivery point
   agentProgress:0,       // 0..1 how far along the route the agent has travelled
+  route:null,            // {origin,dest,path,cum,etaMins} road route, cached per order
 };
 const stages = ["Order Placed","Preparing Order","Out for Delivery","Delivered"];
 
@@ -479,6 +483,7 @@ function render(){
 function renderScreen(){
   switch(state.screen){
     case 'login': return screenLogin();
+    case 'signup': return screenSignup();
     case 'zone': return screenZone();
     case 'home': return screenHome();
     case 'products': return screenProducts();
@@ -500,16 +505,46 @@ function screenLogin(){
       <div class="login-card">
         <h2>Login</h2>
         <div class="field">
-          <label>Username / Mobile</label>
-          <input id="loginUser" type="text" placeholder="e.g. Asha Patil">
+          <label>Mobile Number</label>
+          <input id="loginUser" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit mobile number">
         </div>
         <div class="field">
           <label>Password</label>
           <input id="loginPass" type="password" placeholder="••••••••">
         </div>
-        <div class="error-text" id="loginError">Please enter username and password.</div>
+        <div class="error-text" id="loginError">Please enter mobile number and password.</div>
         <button class="btn btn-primary" id="loginBtn">LOGIN</button>
         <button class="btn btn-ghost" id="signupBtn">Create New Account</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function screenSignup(){
+  return `
+  <div class="screen active">
+    <div class="login-wrap">
+      <div class="brand-banner">
+        <div class="logo">🥬 Vendo<span class="dot">Zone</span></div>
+        <div class="tagline">Create your buyer account.</div>
+      </div>
+      <div class="login-card">
+        <h2>Create Account</h2>
+        <div class="field">
+          <label>Full Name</label>
+          <input id="signupName" type="text" placeholder="Your name">
+        </div>
+        <div class="field">
+          <label>Mobile Number</label>
+          <input id="signupPhone" type="tel" inputmode="numeric" maxlength="10" placeholder="10-digit mobile number">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input id="signupPass" type="password" placeholder="Create a password">
+        </div>
+        <div class="error-text" id="signupError">Please fill all fields.</div>
+        <button class="btn btn-primary" id="signupSubmitBtn">CREATE ACCOUNT</button>
+        <button class="btn btn-ghost" id="backToLoginBtn">Back to Login</button>
       </div>
     </div>
   </div>`;
@@ -741,7 +776,7 @@ function screenTracking(){
 
   let etaBlock='';
   if(isLive){
-    const remaining=Math.max(1, Math.round((1-state.agentProgress)*9)); // ~9 min simulated route
+    const remaining=etaMinsLeft();
     etaBlock=`
       <div class="eta-box">
         <div><div class="etalabel">Estimated arrival</div><div class="etaval">${remaining} min</div></div>
@@ -805,17 +840,51 @@ function bindEvents(){
   const app=document.getElementById('app');
 
   if(state.screen==='login'){
-    document.getElementById('loginBtn').onclick=()=>{
+    digitsOnly(document.getElementById('loginUser'));
+    document.getElementById('loginBtn').onclick=async ()=>{
       const u=document.getElementById('loginUser').value.trim();
       const p=document.getElementById('loginPass').value;
-      if(!u || !p){ showErr('loginError','Please enter username and password.'); return; }
-      if(isMobileLike(u) && !isValidMobile(u)){ showErr('loginError',MOBILE_ERROR); return; }
-      state.customerName=u;
-      state.consumerId=u;   // no consumer API yet — the login username/mobile is used as consumerId
-      go('zone');
-      loadVendors();        // GET /api/vendors
+      if(!u || !p){ showErr('loginError','Please enter mobile number and password.'); return; }
+      if(!isValidMobile(u)){ showErr('loginError',MOBILE_ERROR); return; }
+      const btn=document.getElementById('loginBtn');
+      btn.disabled=true; btn.textContent='Logging in…';
+      try{
+        const res=await apiPost('/api/consumer/login', {phone:u, password:p});
+        state.customerName=res.name || u;
+        state.consumerId=res.consumerId;
+        go('zone');
+        loadVendors();        // GET /api/vendors
+      }catch(e){
+        showErr('loginError', e.message || 'Login failed.');
+        btn.disabled=false; btn.textContent='LOGIN';
+      }
     };
-    document.getElementById('signupBtn').onclick=()=>toast('Signup can be connected to your database later.');
+    document.getElementById('signupBtn').onclick=()=>go('signup');
+  }
+
+  if(state.screen==='signup'){
+    digitsOnly(document.getElementById('signupPhone'));
+    document.getElementById('backToLoginBtn').onclick=()=>go('login');
+    document.getElementById('signupSubmitBtn').onclick=async ()=>{
+      const name=document.getElementById('signupName').value.trim();
+      const phone=document.getElementById('signupPhone').value.trim();
+      const pass=document.getElementById('signupPass').value;
+      if(!name || !phone || !pass){ showErr('signupError','Please fill all fields.'); return; }
+      if(!isValidMobile(phone)){ showErr('signupError',MOBILE_ERROR); return; }
+      const btn=document.getElementById('signupSubmitBtn');
+      btn.disabled=true; btn.textContent='Creating…';
+      try{
+        const res=await apiPost('/api/consumer', {name, phone, password:pass});
+        state.customerName=res.name || name;
+        state.consumerId=res.consumerId;
+        toast('Account created! Welcome, '+state.customerName);
+        go('zone');
+        loadVendors();
+      }catch(e){
+        showErr('signupError', e.message || 'Could not create account.');
+        btn.disabled=false; btn.textContent='CREATE ACCOUNT';
+      }
+    };
   }
 
   if(state.screen==='zone'){
@@ -945,6 +1014,7 @@ function bindEvents(){
       state.orderDestination=destination;
       state.orderIds=placed.map(p=>p.orderId).filter(id=>id!==null && id!==undefined);
       state.agentProgress=0;
+      state.route=null;
       state.cart=[];
       state.stageIndex=0;
       setTimeout(()=>go('tracking'),400);
@@ -966,20 +1036,127 @@ function bindEvents(){
 }
 
 /* ================= LIVE MAP TRACKING ================= */
+// Roads come from OSRM (free demo server — fine for testing; for production use your own
+// OSRM, OpenRouteService, Mapbox or Google Directions).
+const OSRM_URL='https://router.project-osrm.org';
+
 function emojiIcon(emoji, cls){
   return L.divIcon({html:`<div class="${cls}">${emoji}</div>`, className:'', iconSize:[30,30], iconAnchor:[15,15]});
 }
 
 function lerp(a,b,t){ return a+(b-a)*t; }
 
-// Piecewise interpolation along origin -> mid -> destination, t in [0,1]
-function pointOnRoute(origin, mid, dest, t){
-  if(t<=0.5){
-    const k=t/0.5;
-    return {lat:lerp(origin.lat,mid.lat,k), lng:lerp(origin.lng,mid.lng,k)};
+async function fetchJson(url, ms){
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(), ms||7000);
+  try{ const r=await fetch(url,{signal:ctrl.signal}); return await r.json(); }
+  finally{ clearTimeout(timer); }
+}
+
+// Move a point to the nearest drivable road so pins never land in the sea.
+async function snapToRoad(p){
+  try{
+    const d=await fetchJson(`${OSRM_URL}/nearest/v1/driving/${p.lng},${p.lat}?number=1`);
+    if(d.code==='Ok' && d.waypoints && d.waypoints.length){
+      const [lng,lat]=d.waypoints[0].location;
+      return {lat,lng};
+    }
+  }catch(e){ console.warn('snapToRoad failed', e); }
+  return p;
+}
+
+// Cumulative distance along a path (approximate, in degrees) — used to animate at constant speed.
+function buildCum(path){
+  const cum=[0];
+  for(let i=1;i<path.length;i++){
+    const dLat=path[i].lat-path[i-1].lat;
+    const dLng=(path[i].lng-path[i-1].lng)*Math.cos(path[i].lat*Math.PI/180);
+    cum.push(cum[i-1]+Math.hypot(dLat,dLng));
   }
-  const k=(t-0.5)/0.5;
-  return {lat:lerp(mid.lat,dest.lat,k), lng:lerp(mid.lng,dest.lng,k)};
+  return cum;
+}
+
+// Point at fraction t (0..1) of the way along the route.
+function pointAlong(path, cum, t){
+  const total=cum[cum.length-1];
+  if(t<=0 || total===0) return path[0];
+  if(t>=1) return path[path.length-1];
+  const target=total*t;
+  let lo=0, hi=cum.length-1;
+  while(hi-lo>1){ const m=(lo+hi)>>1; if(cum[m]<=target) lo=m; else hi=m; }
+  const seg=cum[hi]-cum[lo] || 1;
+  const k=(target-cum[lo])/seg;
+  return {lat:lerp(path[lo].lat,path[hi].lat,k), lng:lerp(path[lo].lng,path[hi].lng,k)};
+}
+
+// Snap both ends to roads, then fetch the road-following route + ETA.
+async function getRoadRoute(rawOrigin, rawDest){
+  const [origin,dest]=await Promise.all([snapToRoad(rawOrigin), snapToRoad(rawDest)]);
+  try{
+    const d=await fetchJson(`${OSRM_URL}/route/v1/driving/${origin.lng},${origin.lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`, 9000);
+    if(d.code==='Ok' && d.routes && d.routes.length){
+      const r=d.routes[0];
+      const path=r.geometry.coordinates.map(([lng,lat])=>({lat,lng})); // GeoJSON is [lng,lat]
+      return {origin,dest,path,cum:buildCum(path),etaMins:Math.max(1,Math.round(r.duration/60)),real:true};
+    }
+  }catch(e){ console.warn('route failed', e); }
+
+  // Offline fallback: gently curved line so the app still works without the routing server.
+  const mid={lat:(origin.lat+dest.lat)/2 + (dest.lng-origin.lng)*0.18, lng:(origin.lng+dest.lng)/2 - (dest.lat-origin.lat)*0.18};
+  const path=[];
+  for(let i=0;i<=40;i++){
+    const t=i/40, u=1-t;
+    path.push({lat:u*u*origin.lat+2*u*t*mid.lat+t*t*dest.lat, lng:u*u*origin.lng+2*u*t*mid.lng+t*t*dest.lng});
+  }
+  return {origin,dest,path,cum:buildCum(path),etaMins:9,real:false};
+}
+
+function etaMinsLeft(){
+  const total=state.route ? state.route.etaMins : 9;
+  return Math.max(1, Math.round((1-state.agentProgress)*total));
+}
+
+function etaTooltipText(){
+  return state.stageIndex>=3 ? 'Delivered' : `ETA: ${etaMinsLeft()} Mins`;
+}
+
+function drawRoute(map, route){
+  const latlngs=route.path.map(p=>[p.lat,p.lng]);
+
+  // white casing + blue road line, like a navigation app
+  L.polyline(latlngs,{color:'#ffffff',weight:10,opacity:.95,lineCap:'round',lineJoin:'round'}).addTo(map);
+  const line=L.polyline(latlngs,{color:'#2563EB',weight:6,opacity:.95,lineCap:'round',lineJoin:'round'}).addTo(map);
+
+  L.marker([route.origin.lat,route.origin.lng],{icon:emojiIcon('🧺','stall-pin')}).addTo(map).bindPopup('Pickup: street vendor');
+  L.marker([route.dest.lat,route.dest.lng],{icon:emojiIcon('🏠','home-pin')}).addTo(map).bindPopup('Delivery address');
+
+  const startPos=pointAlong(route.path,route.cum,state.agentProgress);
+  agentMarker=L.marker([startPos.lat,startPos.lng],{icon:emojiIcon('🛵','agent-pin'),zIndexOffset:1000}).addTo(map);
+  agentMarker.bindTooltip(etaTooltipText(),{permanent:true,direction:'top',offset:[0,-16],className:'eta-label'});
+
+  map.fitBounds(line.getBounds(),{padding:[30,30]});
+}
+
+function startAgentAnimation(route){
+  if(state.stageIndex!==2 || state.agentProgress>=1) return;
+  const tickMs=120, stepsTotal=75; // ~9s simulated trip
+  const increment=1/stepsTotal;
+  liveTrackTimer=setInterval(()=>{
+    state.agentProgress=Math.min(1, state.agentProgress+increment);
+    const pos=pointAlong(route.path,route.cum,state.agentProgress); // follows the roads
+    if(agentMarker){ agentMarker.setLatLng([pos.lat,pos.lng]); agentMarker.setTooltipContent(etaTooltipText()); }
+
+    // refresh the ETA text without a full re-render
+    const etaVal=document.querySelector('.eta-box .etaval');
+    if(etaVal){ etaVal.textContent = etaMinsLeft() + ' min'; }
+
+    if(state.agentProgress>=1){
+      clearInterval(liveTrackTimer);
+      liveTrackTimer=null;
+      state.stageIndex=3;
+      render(); // final render shows "Delivered" state
+    }
+  }, tickMs);
 }
 
 function initTrackingMap(){
@@ -994,55 +1171,34 @@ function initTrackingMap(){
   }
 
   const zone=findZone(state.activeZone);
-  const origin = state.orderOrigin || zone.coords;
-  const dest = state.orderDestination || {lat:zone.coords.lat+zone.homeOffset.lat, lng:zone.coords.lng+zone.homeOffset.lng};
+  const rawOrigin = state.orderOrigin || zone.coords;
+  const rawDest = state.orderDestination || {lat:zone.coords.lat+zone.homeOffset.lat, lng:zone.coords.lng+zone.homeOffset.lng};
 
-  // Slight perpendicular offset on the midpoint so the route isn't a dead-straight line.
-  const midRaw={lat:(origin.lat+dest.lat)/2, lng:(origin.lng+dest.lng)/2};
-  const dx=dest.lng-origin.lng, dy=dest.lat-origin.lat;
-  const mid={lat:midRaw.lat + dx*0.18, lng:midRaw.lng - dy*0.18};
-
-  trackMap = L.map('trackMap', {zoomControl:false, scrollWheelZoom:false, attributionControl:true});
+  const map = trackMap = L.map('trackMap', {zoomControl:false, scrollWheelZoom:false, attributionControl:true});
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom:19,
     attribution:'&copy; OpenStreetMap contributors'
-  }).addTo(trackMap);
+  }).addTo(map);
+  map.fitBounds([[rawOrigin.lat,rawOrigin.lng],[rawDest.lat,rawDest.lng]], {padding:[26,26]});
 
-  const bounds=L.latLngBounds([[origin.lat,origin.lng],[mid.lat,mid.lng],[dest.lat,dest.lng]]);
-  trackMap.fitBounds(bounds, {padding:[26,26]});
+  const note=document.createElement('div');
+  note.className='map-note';
+  note.textContent='Finding best route…';
+  if(!state.route) mapEl.appendChild(note);
 
-  L.polyline([[origin.lat,origin.lng],[mid.lat,mid.lng],[dest.lat,dest.lng]], {
-    color:'#1C6E64', weight:4, opacity:0.6, dashArray:'1,9', lineCap:'round'
-  }).addTo(trackMap);
+  // The route is fetched once per order and cached, so stage changes redraw instantly.
+  const routeReady = state.route ? Promise.resolve(state.route)
+                                 : getRoadRoute(rawOrigin, rawDest).then(r=>{ state.route=r; return r; });
 
-  L.marker([origin.lat,origin.lng], {icon:emojiIcon('🧺','stall-pin')}).addTo(trackMap).bindPopup('Pickup: street vendor');
-  L.marker([dest.lat,dest.lng], {icon:emojiIcon('🏠','home-pin')}).addTo(trackMap).bindPopup('Delivery address');
-
-  const startPos = pointOnRoute(origin, mid, dest, state.agentProgress);
-  agentMarker = L.marker([startPos.lat,startPos.lng], {icon:emojiIcon('🛵','agent-pin')}).addTo(trackMap).bindPopup('Delivery agent');
-
-  // Only stages "Order Placed" and "Preparing Order" keep the agent parked at the stall.
-  // "Out for Delivery" drives the live animation to the customer's address.
-  if(state.stageIndex===2 && state.agentProgress<1){
-    const tickMs=120, stepsTotal=75; // ~9s simulated trip
-    const increment=1/stepsTotal;
-    liveTrackTimer=setInterval(()=>{
-      state.agentProgress=Math.min(1, state.agentProgress+increment);
-      const pos=pointOnRoute(origin, mid, dest, state.agentProgress);
-      if(agentMarker) agentMarker.setLatLng([pos.lat,pos.lng]);
-
-      // refresh the ETA text without a full re-render
-      const etaVal=document.querySelector('.eta-box .etaval');
-      if(etaVal){ etaVal.textContent = Math.max(1, Math.round((1-state.agentProgress)*9)) + ' min'; }
-
-      if(state.agentProgress>=1){
-        clearInterval(liveTrackTimer);
-        liveTrackTimer=null;
-        state.stageIndex=3;
-        render(); // final render shows "Delivered" state
-      }
-    }, tickMs);
-  }
+  routeReady.then(route=>{
+    if(trackMap!==map) return; // user left the screen / map was rebuilt while loading
+    note.remove();
+    drawRoute(map, route);
+    // refresh ETA box now that the real ETA is known
+    const etaVal=document.querySelector('.eta-box .etaval');
+    if(etaVal && state.stageIndex===2) etaVal.textContent=etaMinsLeft()+' min';
+    startAgentAnimation(route);
+  });
 }
 
 render();
