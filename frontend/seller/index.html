@@ -883,6 +883,21 @@
                         item.itemName + " - " + item.qty + " kg<br>";
                 });
 
+                let orderTotal = 0;
+
+                o.items.forEach(function(item) {
+                    orderTotal += item.qty * item.price;
+                });
+
+                let fulfillButton = "";
+
+                if (o.status !== "fulfilled") {
+                    fulfillButton =
+                        "<button onclick=\"markFulfilled('" + o.orderId + "')\">" +
+                        "✅ Mark Fulfilled" +
+                        "</button>";
+                }
+
                 result +=
 
                     "<div class='vegetable'>" +
@@ -891,7 +906,11 @@
 
                     itemsText +
 
+                    "Total: ₹" + orderTotal + "<br>" +
+
                     "Status: <b>" + o.status + "</b>" +
+
+                    fulfillButton +
 
                     "</div>";
 
@@ -904,6 +923,38 @@
         .catch(function(error) {
 
             alert("Could not reach the server. Is the backend running? " + error);
+
+        });
+
+    }
+
+
+    // ================= MARK ORDER FULFILLED =================
+    // Connected to the real backend: PATCH /api/order/{orderId}/status
+
+    function markFulfilled(orderId) {
+
+        fetch('https://vendozone.onrender.com/api/order/' + orderId + '/status', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: "fulfilled" })
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error("Server returned an error: " + response.status);
+            }
+            return response.text();
+        })
+        .then(function() {
+
+            // Reload the order list and the Orders / Income tiles with the new status
+            showOrders();
+            refreshStats();
+
+        })
+        .catch(function(error) {
+
+            alert("Could not update the order. " + error);
 
         });
 
